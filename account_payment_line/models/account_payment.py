@@ -1,9 +1,8 @@
 # Copyright 2022 ForgeFlow, S.L.
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
 
-from odoo import _, fields, models
+from odoo import Command, fields, models
 from odoo.exceptions import ValidationError
-from odoo.tools import float_is_zero
 
 
 class AccountPayment(models.Model):
@@ -13,26 +12,23 @@ class AccountPayment(models.Model):
         "account.payment.counterpart.line",
         "payment_id",
         string="Counterpart Lines",
-        readonly=True,
-        states={"draft": [("readonly", False)]},
         help="Use these lines to add matching lines, for example in a credit"
         "card payment, financing interest or commission is added",
     )
     writeoff_account_id = fields.Many2one(
         "account.account",
         string="Write-off Account",
-        domain="[('deprecated', '=', False), ('company_id', '=', company_id)]",
+        domain="[('deprecated', '=', False), ('company_ids', '=', company_id)]",
     )
 
     def _process_post_reconcile(self):
-        for rec in self:
-            for line in rec.line_payment_counterpart_ids:
-                if line.aml_id:
-                    to_reconcile = (line.aml_id + line.move_ids).filtered(
-                        lambda x: not x.reconciled and x.account_id.reconcile
-                    )
-                    if to_reconcile:
-                        to_reconcile.reconcile()
+        for rec in self.filtered("line_payment_counterpart_ids"):
+            for line in rec.line_payment_counterpart_ids.filtered("aml_id"):
+                to_reconcile = (line.aml_id + line.move_ids).filtered(
+                    lambda x: not x.reconciled and x.account_id.reconcile
+                )
+                if to_reconcile:
+                    to_reconcile.reconcile()
         return True
 
     def _get_moves_domain(self):
@@ -46,16 +42,17 @@ class AccountPayment(models.Model):
                 self.partner_id.commercial_partner_id.id,
             ),
         ]
-        if self.partner_type == "supplier":
-            if self.payment_type == "outbound":
-                domain.append(("move_type", "in", ("in_invoice", "in_receipt")))
-            if self.payment_type == "inbound":
-                domain.append(("move_type", "=", "in_refund"))
-        elif self.partner_type == "customer":
-            if self.payment_type == "outbound":
-                domain.append(("move_type", "=", "out_refund"))
-            if self.payment_type == "inbound":
-                domain.append(("move_type", "in", ("out_invoice", "out_receipt")))
+        move_type_map = {
+            ("supplier", "outbound"): [
+                ("move_type", "in", ("in_invoice", "in_receipt"))
+            ],
+            ("supplier", "inbound"): [("move_type", "=", "in_refund")],
+            ("customer", "outbound"): [("move_type", "=", "out_refund")],
+            ("customer", "inbound"): [
+                ("move_type", "in", ("out_invoice", "out_receipt"))
+            ],
+        }
+        domain.extend(move_type_map.get((self.partner_type, self.payment_type), []))
         return domain
 
     def _filter_amls(self, amls):
@@ -82,12 +79,11 @@ class AccountPayment(models.Model):
         )
 
     def action_propose_payment_distribution(self):
-        move_model = self.env["account.move"]
         for rec in self:
-            if self.is_internal_transfer:
-                continue
-            domain = self._get_moves_domain()
-            pending_invoices = move_model.search(domain, order="invoice_date_due ASC")
+            domain = rec._get_moves_domain()
+            pending_invoices = rec.env["account.move"].search(
+                domain, order="invoice_date_due ASC"
+            )
             pending_amount = rec.amount
             rec.line_payment_counterpart_ids.unlink()
             for invoice in pending_invoices:
@@ -108,46 +104,70 @@ class AccountPayment(models.Model):
 
     def action_delete_counterpart_lines(self):
         if self.line_payment_counterpart_ids and self.state == "draft":
-            self.line_payment_counterpart_ids = [(5, 0, 0)]
+            self.line_payment_counterpart_ids = [Command.clear()]
 
-    def _prepare_move_line_default_vals(self, write_off_line_vals=None):
-        res = super()._prepare_move_line_default_vals(write_off_line_vals)
+    def _prepare_move_line_default_vals(
+        self, write_off_line_vals=None, force_balance=None
+    ):
+        new_write_off_line_vals = self._prepare_move_line_counterpart_vals(
+            write_off_line_vals
+        )
+        if write_off_line_vals:
+            new_write_off_line_vals += write_off_line_vals
+        vals_list = super()._prepare_move_line_default_vals(
+            write_off_line_vals=new_write_off_line_vals, force_balance=force_balance
+        )
+        # filter line with both debit and credit equal 0
+        filter_vals_list = [
+            vals
+            for vals in vals_list
+            if not (vals["debit"] == 0.0 and vals["credit"] == 0.0)
+        ]
+        return filter_vals_list if filter_vals_list else vals_list
+
+    def _prepare_move_line_counterpart_vals(self, write_off_line_vals=None):
+        """return list of dictionary
+        * amount:       The amount to be added to the counterpart amount.
+        * name:         The label to set on the line.
+        * account_id:   The account on which create the counterpart line.
+        """
+        self.ensure_one()
         write_off_line_vals_list = write_off_line_vals or []
         write_off_amount_currency = sum(
             x["amount_currency"] for x in write_off_line_vals_list
         )
         write_off_balance = sum(x["balance"] for x in write_off_line_vals_list)
-
-        if self.payment_type == "outbound":
+        is_outbound = self.payment_type == "outbound"
+        if is_outbound:
             write_off_amount_currency *= -1
         new_aml_lines = []
+        currency_id = self.currency_id
+        company_id = self.company_id
+        payment_date = self.date
         for line in self.line_payment_counterpart_ids.filtered(
-            lambda x: not float_is_zero(
-                x.amount, precision_digits=self.currency_id.decimal_places
-            )
+            lambda x: not currency_id.is_zero(x.amount)
         ):
-            line_balance = (
-                line.amount if self.payment_type == "outbound" else line.amount * -1
-            )
+            line_balance = line.amount if is_outbound else line.amount * -1
             line_balance_currency = (
-                line.amount_currency
-                if self.payment_type == "outbound"
-                else line.amount_currency * -1
+                line.amount_currency if is_outbound else line.amount_currency * -1
             )
             aml_value = line_balance_currency + write_off_balance
             aml_value_currency = line_balance + write_off_amount_currency
-            if line.fully_paid and not float_is_zero(
-                line.writeoff_amount, precision_digits=self.currency_id.decimal_places
-            ):
+            if line.fully_paid and not currency_id.is_zero(line.writeoff_amount):
                 write_off_account = (
                     line.writeoff_account_id.id or self.writeoff_account_id.id
                 )
                 if not write_off_account:
                     raise ValidationError(
-                        _("Write-off account is not set for payment %(name)s")
-                        % {"name": self.display_name}
+                        self.env._(
+                            "Write-off account is not set for payment %(name)s",
+                            name=self.display_name,
+                        )
                     )
                 # Fully Paid line
+                amount_currency_fully_paid = abs(line.aml_amount_residual_currency) * (
+                    line.aml_amount_residual > 0.0 and -1 or 1
+                )
                 new_aml_lines.append(
                     {
                         "name": line.display_name,
@@ -157,9 +177,14 @@ class AccountPayment(models.Model):
                         "credit": line.aml_amount_residual > 0.0
                         and abs(line.aml_amount_residual)
                         or 0.0,
-                        "amount_currency": abs(line.aml_amount_residual_currency)
-                        * (line.aml_amount_residual > 0.0 and -1 or 1),
-                        "date_maturity": self.date,
+                        "amount_currency": amount_currency_fully_paid,
+                        "balance": currency_id._convert(
+                            amount_currency_fully_paid,
+                            company_id.currency_id,
+                            company_id,
+                            payment_date,
+                        ),
+                        "date_maturity": payment_date,
                         "partner_id": line.partner_id.commercial_partner_id.id,
                         "account_id": line.account_id.id,
                         "currency_id": line.payment_id.currency_id.id,
@@ -168,18 +193,26 @@ class AccountPayment(models.Model):
                     }
                 )
                 # write-off line
+                amount_currency_write_off = abs(line.writeoff_amount_currency) * (
+                    line.writeoff_amount < 0.0 and -1 or 1
+                )
                 new_aml_lines.append(
                     {
-                        "name": _("Write-off"),
+                        "name": self.env._("Write-off"),
                         "debit": line.writeoff_amount > 0.0
                         and line.writeoff_amount
                         or 0.0,
                         "credit": line.writeoff_amount < 0.0
                         and -line.writeoff_amount
                         or 0.0,
-                        "amount_currency": abs(line.writeoff_amount_currency)
-                        * (line.writeoff_amount < 0.0 and -1 or 1),
-                        "date_maturity": self.date,
+                        "amount_currency": amount_currency_write_off,
+                        "balance": currency_id._convert(
+                            amount_currency_write_off,
+                            company_id.currency_id,
+                            company_id,
+                            payment_date,
+                        ),
+                        "date_maturity": payment_date,
                         "partner_id": line.partner_id.commercial_partner_id.id,
                         "account_id": write_off_account,
                         "currency_id": line.payment_id.currency_id.id,
@@ -187,17 +220,24 @@ class AccountPayment(models.Model):
                         "payment_line_id": line.id,
                     }
                 )
-
             else:
-                aml_value *= self.payment_type == "outbound" and -1 or 1
+                aml_value *= is_outbound and -1 or 1
+                amount_currency = abs(aml_value_currency) * (
+                    aml_value < 0.0 and -1 or 1
+                )
                 new_aml_lines.append(
                     {
                         "name": line.display_name,
                         "debit": aml_value > 0.0 and aml_value or 0.0,
                         "credit": aml_value < 0.0 and -aml_value or 0.0,
-                        "amount_currency": abs(aml_value_currency)
-                        * (aml_value < 0.0 and -1 or 1),
-                        "date_maturity": self.date,
+                        "amount_currency": amount_currency,
+                        "balance": currency_id._convert(
+                            amount_currency,
+                            company_id.currency_id,
+                            company_id,
+                            payment_date,
+                        ),
+                        "date_maturity": payment_date,
                         "partner_id": line.partner_id.commercial_partner_id.id,
                         "account_id": line.account_id.id,
                         "currency_id": line.payment_id.currency_id.id,
@@ -205,31 +245,27 @@ class AccountPayment(models.Model):
                         "payment_line_id": line.id,
                     }
                 )
-        if len(res) >= 2 and new_aml_lines:
-            res.pop(1)
-            res += new_aml_lines
-        return res
+        return new_aml_lines
 
     def _check_writeoff_lines(self):
         for rec in self:
             writeoff_lines = rec.line_payment_counterpart_ids.filtered(
-                lambda x: x.fully_paid
-                and not float_is_zero(
-                    x.writeoff_amount, precision_digits=rec.currency_id.decimal_places
-                )
+                lambda x, currency=rec.currency_id: x.fully_paid
+                and not currency.is_zero(x.writeoff_amount)
             )
             if not rec.writeoff_account_id and not all(
                 line.writeoff_account_id for line in writeoff_lines
             ):
                 raise ValidationError(
-                    _(
-                        "You should set up write-off account on lines or in header to continue"
+                    self.env._(
+                        "You should set up write-off account on lines "
+                        "or in header to continue"
                     )
                 )
 
     def action_post(self):
         self._check_writeoff_lines()
-        for rec in self.filtered(lambda x: x.line_payment_counterpart_ids):
+        for rec in self.filtered("line_payment_counterpart_ids"):
             if rec.move_id.line_ids:
                 rec.move_id.line_ids.unlink()
             rec.move_id.line_ids = [
@@ -241,7 +277,7 @@ class AccountPayment(models.Model):
 
     def action_draft(self):
         res = super().action_draft()
-        for rec in self.filtered(lambda x: x.line_payment_counterpart_ids):
+        for rec in self.filtered("line_payment_counterpart_ids"):
             # CHECK ME: force to recreate lines
             # if document back to draft state,
             # because we can change counterpart lines,
@@ -256,14 +292,9 @@ class AccountPaymentCounterLine(models.Model):
     _description = "Counterpart line payment"
 
     payment_id = fields.Many2one(
-        "account.payment", string="Payment", required=False, ondelete="cascade"
+        "account.payment", string="Payment", ondelete="cascade"
     )
 
     def _get_onchange_fields(self):
-        return (
-            "aml_id.amount_residual",
-            "amount",
-            "payment_id.currency_id",
-            "payment_id.date",
-            "fully_paid",
-        )
+        res = super()._get_onchange_fields()
+        return res + ("payment_id.currency_id", "payment_id.date")

@@ -1,6 +1,6 @@
 # Copyright 2022 ForgeFlow, S.L.
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 dict_payment_type = dict(
@@ -14,9 +14,7 @@ class AccountPaymentCounterLinesAbstract(models.AbstractModel):
     _description = "Counterpart line payment Abstract"
 
     company_id = fields.Many2one(
-        comodel_name="res.company",
-        compute="_compute_company_fields",
-        default=lambda self: self.env.company,
+        comodel_name="res.company", compute="_compute_company_fields"
     )
     name = fields.Char(string="Description", required=True, default="/")
     account_id = fields.Many2one(
@@ -36,46 +34,56 @@ class AccountPaymentCounterLinesAbstract(models.AbstractModel):
         comodel_name="res.currency",
         string="Currency",
         compute="_compute_company_fields",
-        default=lambda self: self.env.company.currency_id,
     )
 
     fully_paid = fields.Boolean(string="Fully Paid?")
     writeoff_account_id = fields.Many2one(
         comodel_name="account.account",
         string="Write-off account",
-        domain="[('deprecated', '=', False), ('company_id', '=', company_id)]",
+        domain="[('deprecated', '=', False), ('company_ids', '=', company_id)]",
     )
     writeoff_amount = fields.Monetary(
         required=False,
         compute="_compute_amounts",
+        currency_field="currency_id",
     )
     writeoff_amount_currency = fields.Monetary(
         required=False,
         compute="_compute_amounts",
+        currency_field="currency_id",
     )
 
+    @api.depends_context("company")
+    @api.depends("company_id")
     def _compute_company_fields(self):
+        company = self.env.company
         for rec in self:
-            rec.company_id = self.env.company.id
-            rec.currency_id = self.env.company.currency_id.id
+            rec.company_id = company.id
+            rec.currency_id = company.currency_id.id
 
     amount = fields.Monetary(required=True)
     amount_currency = fields.Monetary(
-        string="Amount in Company Currency", compute="_compute_amounts"
+        string="Amount in Company Currency",
+        compute="_compute_amounts",
+        currency_field="currency_id",
     )
     aml_amount_residual = fields.Monetary(
         string="Amount Residual",
         compute="_compute_amounts",
+        currency_field="currency_id",
     )
     residual_after_payment = fields.Monetary(
         compute="_compute_amounts",
+        currency_field="currency_id",
     )
     aml_amount_residual_currency = fields.Monetary(
         string="Amount Residual Currency",
         compute="_compute_amounts",
+        currency_field="currency_id",
     )
     residual_after_payment_currency = fields.Monetary(
         compute="_compute_amounts",
+        currency_field="currency_id",
     )
 
     def _get_onchange_fields(self):
@@ -84,19 +92,20 @@ class AccountPaymentCounterLinesAbstract(models.AbstractModel):
     @api.depends(lambda x: x._get_onchange_fields())
     def _compute_amounts(self):
         for rec in self:
+            payment = rec.payment_id
             payment_date = (
-                hasattr(rec.payment_id, "payment_date")
-                and rec.payment_id.payment_date
-                or rec.payment_id.date
+                hasattr(payment, "payment_date")
+                and payment.payment_date
+                or payment.date
             )
-            rec.amount_currency = rec.payment_id.currency_id._convert(
+            rec.amount_currency = payment.currency_id._convert(
                 rec.amount,
-                rec.payment_id.company_id.currency_id,
-                rec.payment_id.company_id,
+                payment.company_id.currency_id,
+                payment.company_id,
                 date=payment_date,
             )
             rec.aml_amount_residual = rec.aml_id.amount_residual
-            min_max = rec.payment_id.payment_type == "outbound" and min or max
+            min_max = payment.payment_type == "outbound" and min or max
             rec.residual_after_payment = (
                 not rec.fully_paid
                 and min_max(rec.aml_id.amount_residual - rec.amount, 0)
@@ -162,16 +171,18 @@ class AccountPaymentCounterLinesAbstract(models.AbstractModel):
                     else:
                         rec.amount = rec.aml_id.amount_residual
 
-    @api.constrains("amount", "aml_amount_residual")
+    @api.constrains("amount")
     def constrains_amount_residual(self):
         for rec in self:
             if (
                 rec.aml_id
                 and 0 < rec.aml_amount_residual_currency < rec.amount_currency
             ):
+                move_name = rec.aml_id.move_id.name or rec.aml_id.name
                 raise ValidationError(
-                    _(
-                        "the amount exceeds the residual amount, please check the invoice %s"
+                    self.env._(
+                        "the amount exceeds the residual amount, "
+                        "please check the invoice %s",
+                        move_name,
                     )
-                    % (rec.aml_id.move_id.name or rec.aml_id.name),
                 )
