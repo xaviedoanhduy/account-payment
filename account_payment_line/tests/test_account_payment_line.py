@@ -3,9 +3,9 @@
 
 import json
 
-from odoo import fields
+from odoo import Command, fields
 from odoo.exceptions import ValidationError
-from odoo.tests.common import Form, tagged
+from odoo.tests import Form, tagged
 
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 
@@ -13,44 +13,26 @@ from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 @tagged("post_install", "-at_install")
 class TestAccountPaymentLines(AccountTestInvoicingCommon):
     @classmethod
-    def setUpClass(cls, chart_template_ref=None):
-        super().setUpClass(chart_template_ref=chart_template_ref)
+    def setUpClass(cls):
+        super().setUpClass()
         cls.test_product = cls.env["product.product"].create(
             {
                 "name": "test_product",
                 "type": "service",
             }
         )
-        cls.customer = cls.env["res.partner"].create(
-            {
-                "name": "test_customer",
-            }
-        )
-        cls.customer2 = cls.env["res.partner"].create(
-            {
-                "name": "test_customer",
-            }
-        )
-        cls.supplier = cls.env["res.partner"].create(
-            {
-                "name": "test_vendor",
-            }
-        )
-        cls.supplier2 = cls.env["res.partner"].create(
-            {
-                "name": "test_vendor",
-            }
-        )
+        cls.customer = cls.env["res.partner"].create({"name": "test_customer"})
+        cls.customer2 = cls.env["res.partner"].create({"name": "test_customer"})
+        cls.supplier = cls.env["res.partner"].create({"name": "test_vendor"})
+        cls.supplier2 = cls.env["res.partner"].create({"name": "test_vendor"})
         cls.currency_2x = cls.env["res.currency"].create(
             {
                 "name": "2X",  # Foreign currency, 2 time
                 "symbol": "X",
                 "rate_ids": [
-                    (
-                        0,
-                        0,
+                    Command.create(
                         {
-                            "name": fields.Date.today(),
+                            "name": fields.Date.context_today(cls.env.user),
                             "rate": cls.env.company.currency_id.rate * 2,
                         },
                     )
@@ -63,22 +45,18 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
                 "note": "Payment terms: 30% Advance End of Following Month",
                 "sequence": 500,
                 "line_ids": [
-                    (
-                        0,
-                        0,
+                    Command.create(
                         {
                             "value": "percent",
                             "value_amount": 50.0,
-                            "days": 0,
+                            "nb_days": 0,
                         },
                     ),
-                    (
-                        0,
-                        0,
+                    Command.create(
                         {
-                            "value": "balance",
-                            "value_amount": 0.0,
-                            "days": 31,
+                            "value": "percent",
+                            "value_amount": 50.0,
+                            "nb_days": 31,
                         },
                     ),
                 ],
@@ -102,7 +80,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         )
         if not currency:
             currency = self.env.company.currency_id
-        move_form.invoice_date = fields.Date.today()
+        move_form.invoice_date = fields.Date.context_today(self.env.user)
         move_form.partner_id = partner
         move_form.currency_id = currency
         if payment_term:
@@ -115,21 +93,20 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         move.action_post()
         return move
 
-    def _create_refund(self, invoice, refund_method="cancel"):
+    def _create_refund(self, invoice):
         ctx = {"active_model": "account.move", "active_ids": [invoice.id]}
         move_reversal = (
             self.env["account.move.reversal"]
             .with_context(**ctx)
             .create(
                 {
-                    "date": fields.Date.today(),
+                    "date": fields.Date.context_today(self.env.user),
                     "reason": "no reason",
-                    "refund_method": refund_method,
                     "journal_id": invoice.journal_id.id,
                 }
             )
         )
-        reversal = move_reversal.reverse_moves()
+        reversal = move_reversal.refund_moves()
         reverse_move = self.env["account.move"].browse(reversal["res_id"])
         return reverse_move
 
@@ -190,14 +167,10 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             100.0,
             "inbound",
             "customer",
-            [
-                {
-                    "move_id": new_invoice,
-                }
-            ],
+            [{"move_id": new_invoice}],
             post=True,
         )
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "paid")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(new_payment.reconciled_invoice_ids, new_invoice)
 
@@ -217,7 +190,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             ],
             post=True,
         )
-        self.assertEqual(new_payment2.state, "posted")
+        self.assertEqual(new_payment2.state, "in_process")
         self.assertTrue(new_payment2.is_reconciled)
         self.assertEqual(new_payment2.reconciled_invoice_ids, new_invoice2)
         self.assertEqual(new_invoice2.amount_residual, 50.0)
@@ -227,14 +200,10 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             50.0,
             "inbound",
             "customer",
-            [
-                {
-                    "move_id": new_invoice2,
-                }
-            ],
+            [{"move_id": new_invoice2}],
             post=True,
         )
-        self.assertEqual(new_payment3.state, "posted")
+        self.assertEqual(new_payment3.state, "paid")
         self.assertTrue(new_payment3.is_reconciled)
         self.assertEqual(new_payment3.reconciled_invoice_ids, new_invoice2)
         self.assertEqual(new_invoice2.amount_residual, 0.0)
@@ -242,8 +211,8 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         new_payment2.action_draft()
         new_payment2.action_cancel()
 
-        self.assertEqual(new_payment2.state, "cancel")
-        self.assertEqual(new_payment3.state, "posted")
+        self.assertEqual(new_payment2.state, "canceled")
+        self.assertEqual(new_payment3.state, "in_process")
         self.assertTrue(new_payment3.is_reconciled)
         self.assertEqual(new_payment3.reconciled_invoice_ids, new_invoice2)
         self.assertEqual(new_invoice2.amount_residual, 50.0)
@@ -261,22 +230,18 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             "inbound",
             "customer",
             [
-                {
-                    "move_id": new_invoice,
-                },
-                {
-                    "move_id": new_invoice2,
-                },
+                {"move_id": new_invoice},
+                {"move_id": new_invoice2},
             ],
             post=True,
         )
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "paid")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(new_payment.reconciled_invoice_ids, new_invoice + new_invoice2)
         self.assertIn(new_invoice.payment_state, ["paid", "in_payment"])
         self.assertIn(new_invoice2.payment_state, ["paid", "in_payment"])
 
-        new_refund = self._create_refund(new_invoice, "refund")
+        new_refund = self._create_refund(new_invoice)
         new_refund.action_post()
         self.assertEqual(new_refund.payment_state, "not_paid")
         self.assertEqual(new_refund.amount_total, 100.0)
@@ -285,14 +250,10 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             100.0,
             "outbound",
             "customer",
-            [
-                {
-                    "move_id": new_refund,
-                },
-            ],
+            [{"move_id": new_refund}],
             post=True,
         )
-        self.assertEqual(new_payment_refund.state, "posted")
+        self.assertEqual(new_payment_refund.state, "paid")
         self.assertTrue(new_payment_refund.is_reconciled)
         self.assertEqual(new_payment_refund.reconciled_invoice_ids, new_refund)
         self.assertIn(new_refund.payment_state, ["paid", "in_payment"])
@@ -306,14 +267,10 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             100.0,
             "outbound",
             "supplier",
-            [
-                {
-                    "move_id": new_invoice,
-                }
-            ],
+            [{"move_id": new_invoice}],
             post=True,
         )
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "in_process")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(new_payment.reconciled_bill_ids, new_invoice)
 
@@ -333,7 +290,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             ],
             post=True,
         )
-        self.assertEqual(new_payment2.state, "posted")
+        self.assertEqual(new_payment2.state, "in_process")
         self.assertTrue(new_payment2.is_reconciled)
         self.assertEqual(new_payment2.reconciled_bill_ids, new_invoice2)
         self.assertEqual(new_invoice2.amount_residual, 50.0)
@@ -343,14 +300,10 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             50.0,
             "outbound",
             "supplier",
-            [
-                {
-                    "move_id": new_invoice2,
-                }
-            ],
+            [{"move_id": new_invoice2}],
             post=True,
         )
-        self.assertEqual(new_payment3.state, "posted")
+        self.assertEqual(new_payment3.state, "in_process")
         self.assertTrue(new_payment3.is_reconciled)
         self.assertEqual(new_payment3.reconciled_bill_ids, new_invoice2)
         self.assertEqual(new_invoice2.amount_residual, 0.0)
@@ -358,8 +311,8 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         new_payment2.action_draft()
         new_payment2.action_cancel()
 
-        self.assertEqual(new_payment2.state, "cancel")
-        self.assertEqual(new_payment3.state, "posted")
+        self.assertEqual(new_payment2.state, "canceled")
+        self.assertEqual(new_payment3.state, "in_process")
         self.assertTrue(new_payment3.is_reconciled)
         self.assertEqual(new_payment3.reconciled_bill_ids, new_invoice2)
         self.assertEqual(new_invoice2.amount_residual, 50.0)
@@ -377,22 +330,18 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             "outbound",
             "supplier",
             [
-                {
-                    "move_id": new_invoice,
-                },
-                {
-                    "move_id": new_invoice2,
-                },
+                {"move_id": new_invoice},
+                {"move_id": new_invoice2},
             ],
             post=True,
         )
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "in_process")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(new_payment.reconciled_bill_ids, new_invoice + new_invoice2)
         self.assertIn(new_invoice.payment_state, ["paid", "in_payment"])
         self.assertIn(new_invoice2.payment_state, ["paid", "in_payment"])
 
-        new_refund = self._create_refund(new_invoice, "refund")
+        new_refund = self._create_refund(new_invoice)
         new_refund.action_post()
         self.assertEqual(new_refund.payment_state, "not_paid")
         self.assertEqual(new_refund.amount_total, 100.0)
@@ -401,14 +350,10 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             100.0,
             "inbound",
             "supplier",
-            [
-                {
-                    "move_id": new_refund,
-                },
-            ],
+            [{"move_id": new_refund}],
             post=True,
         )
-        self.assertEqual(new_payment_refund.state, "posted")
+        self.assertEqual(new_payment_refund.state, "in_process")
         self.assertTrue(new_payment_refund.is_reconciled)
         self.assertEqual(new_payment_refund.reconciled_bill_ids, new_refund)
         self.assertIn(new_refund.payment_state, ["paid", "in_payment"])
@@ -461,7 +406,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_invoice2.amount_residual, 50.0)
         self.assertEqual(new_invoice3.payment_state, "partial")
         self.assertEqual(new_invoice3.amount_residual, 50.0)
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "in_process")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(
             new_payment.reconciled_invoice_ids,
@@ -491,7 +436,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_invoice2.amount_residual, 0.0)
         self.assertEqual(new_invoice3.payment_state, "partial")
         self.assertEqual(new_invoice3.amount_residual, 50.0)
-        self.assertEqual(new_payment2.state, "posted")
+        self.assertEqual(new_payment2.state, "paid")
         self.assertTrue(new_payment2.is_reconciled)
         self.assertEqual(
             new_payment2.reconciled_invoice_ids,
@@ -512,7 +457,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         )
         self.assertIn(new_invoice3.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice3.amount_residual, 0.0)
-        self.assertEqual(new_payment3.state, "posted")
+        self.assertEqual(new_payment3.state, "paid")
         self.assertTrue(new_payment3.is_reconciled)
         self.assertEqual(
             new_payment3.reconciled_invoice_ids,
@@ -537,7 +482,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
             ],
             post=True,
         )
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "in_process")
         self.assertFalse(new_payment.is_reconciled)
         self.assertFalse(bool(new_payment.reconciled_invoice_ids))
         new_invoice = self._create_invoice("out_invoice", self.customer, 100.0)
@@ -548,7 +493,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         new_invoice.js_assign_outstanding_line(payments.get("content", [])[0].get("id"))
         self.assertEqual(new_invoice.payment_state, "partial")
         self.assertEqual(new_invoice.amount_residual, 50.0)
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "in_process")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(
             new_payment.reconciled_invoice_ids,
@@ -576,7 +521,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         )
         self.assertIn(new_invoice.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice.amount_residual, 0.0)
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "paid")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(
             new_payment.reconciled_invoice_ids,
@@ -604,7 +549,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         )
         self.assertIn(new_invoice2.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice2.amount_residual, 0.0)
-        self.assertEqual(new_payment2.state, "posted")
+        self.assertEqual(new_payment2.state, "paid")
         self.assertTrue(new_payment2.is_reconciled)
         self.assertEqual(
             new_payment2.reconciled_invoice_ids,
@@ -630,7 +575,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         )
         self.assertIn(new_invoice.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice.amount_residual, 0.0)
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "paid")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(
             new_payment.reconciled_invoice_ids,
@@ -680,7 +625,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_invoice2.amount_residual, 0.0)
         self.assertIn(new_invoice3.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice3.amount_residual, 0.0)
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "paid")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(
             new_payment.reconciled_invoice_ids,
@@ -708,7 +653,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         )
         self.assertIn(new_invoice.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice.amount_residual, 0.0)
-        self.assertEqual(new_payment.state, "posted")
+        self.assertEqual(new_payment.state, "paid")
         self.assertTrue(new_payment.is_reconciled)
         self.assertEqual(
             new_payment.reconciled_invoice_ids,
@@ -749,7 +694,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_invoice2.amount_residual, 0.0)
         self.assertIn(new_invoice3.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_invoice3.amount_residual, 0.0)
-        self.assertEqual(new_payment2.state, "posted")
+        self.assertEqual(new_payment2.state, "paid")
         self.assertTrue(new_payment2.is_reconciled)
         self.assertEqual(
             new_payment2.reconciled_invoice_ids,
@@ -791,7 +736,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         payment.action_post()
         self.assertEqual(new_out_invoice.payment_state, "partial")
         self.assertEqual(new_out_invoice.amount_residual, 50.0)
-        self.assertEqual(payment.state, "posted")
+        self.assertEqual(payment.state, "in_process")
         self.assertTrue(payment.is_reconciled)
         self.assertEqual(
             payment.reconciled_invoice_ids,
@@ -819,7 +764,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_out_invoice.amount_residual, 0.0)
         self.assertIn(new_out_refund.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_out_refund.amount_residual, 0.0)
-        self.assertEqual(new_payment2.state, "posted")
+        self.assertEqual(new_payment2.state, "paid")
         self.assertTrue(new_payment2.is_reconciled)
         self.assertEqual(
             new_payment2.reconciled_invoice_ids,
@@ -900,7 +845,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_in_refund.amount_residual, 0.0)
         self.assertIn(new_in_invoice.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_in_invoice.amount_residual, 0.0)
-        self.assertEqual(new_payment3.state, "posted")
+        self.assertEqual(new_payment3.state, "paid")
         self.assertTrue(new_payment3.is_reconciled)
         self.assertEqual(
             new_payment3.reconciled_bill_ids,
@@ -940,7 +885,7 @@ class TestAccountPaymentLines(AccountTestInvoicingCommon):
         self.assertEqual(new_in_refund2.amount_residual, 0.0)
         self.assertIn(new_in_invoice2.payment_state, ["paid", "in_payment"])
         self.assertEqual(new_in_invoice2.amount_residual, 0.0)
-        self.assertEqual(new_payment4.state, "posted")
+        self.assertEqual(new_payment4.state, "paid")
         self.assertTrue(new_payment4.is_reconciled)
         self.assertEqual(
             new_payment4.reconciled_invoice_ids,
