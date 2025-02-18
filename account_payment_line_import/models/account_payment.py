@@ -11,11 +11,10 @@ class AccountPayment(models.Model):
     @api.model
     def load(self, fields, data):
         account_move = self.env["account.move"]
-        if "template_context" in self.env.context and self.env.context.get(
-            "active_id", False
-        ):
+        context = self.env.context
+        if "template_context" in context and context.get("active_id", False):
             fields.append("line_payment_counterpart_ids/partner_id")
-            current_payment = self.browse(self.env.context.get("active_id"))
+            current_payment = self.browse(context.get("active_id"))
             current_payment.action_delete_counterpart_lines()
             current_partner = current_payment.partner_id
             new_data = []

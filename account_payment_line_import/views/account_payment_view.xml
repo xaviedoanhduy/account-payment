@@ -27,7 +27,7 @@
                 <button
                     name="%(action_account_payment_import_xlsx)d"
                     class="btn"
-                    states="draft"
+                    invisible="state != 'draft'"
                     string="Import Payment Distribution"
                     type="action"
                 />
