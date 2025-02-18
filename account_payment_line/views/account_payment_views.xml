@@ -2,11 +2,10 @@
 <odoo>
     <!-- explicit list view definition -->
     <record id="view_account_payment_line_tree" model="ir.ui.view">
-        <field name="name">view.account.payment.line.tree</field>
+        <field name="name">view.account.payment.line.list</field>
         <field name="model">account.payment.counterpart.line</field>
         <field name="arch" type="xml">
-            <tree editable="top">
-                <field name="company_id" invisible="1" />
+            <list editable="top">
                 <field name="name" />
                 <field
                     name="partner_id"
@@ -19,7 +18,6 @@
                     options="{'no_create': True}"
                     groups="analytic.group_analytic_accounting"
                 />
-                <field name="commercial_partner_id" invisible="1" />
                 <field
                     name="move_id"
                     options="{'no_create': True}"
@@ -50,40 +48,40 @@
                 />
                 <field
                     name="aml_amount_residual"
-                    attrs="{'column_invisible': [('parent.state', '!=', 'draft')]}"
+                    column_invisible="parent.state != 'draft'"
                     sum="Total Due"
                 />
                 <field
                     name="residual_after_payment"
-                    attrs="{'column_invisible': [('parent.state', '!=', 'draft')]}"
+                    column_invisible="parent.state != 'draft'"
                     sum="Residual"
                 />
                 <field
                     name="writeoff_amount"
-                    attrs="{'column_invisible': [('parent.state', '!=', 'draft')]}"
+                    column_invisible="parent.state != 'draft'"
                     sum="Write-Off amount"
                     optional="hide"
                 />
                 <field
                     name="aml_amount_residual_currency"
                     groups="base.group_multi_currency"
-                    attrs="{'column_invisible': [('parent.state', '!=', 'draft')]}"
+                    column_invisible="parent.state != 'draft'"
                     sum="Total Due Currency"
                 />
                 <field
                     name="residual_after_payment_currency"
                     groups="base.group_multi_currency"
-                    attrs="{'column_invisible': [('parent.state', '!=', 'draft')]}"
+                    column_invisible="parent.state != 'draft'"
                     sum="Residual Currency"
                 />
                 <field
                     name="writeoff_amount_currency"
                     groups="base.group_multi_currency"
-                    attrs="{'column_invisible': [('parent.state', '!=', 'draft')]}"
+                    column_invisible="parent.state != 'draft'"
                     sum="Write-Off amount currency"
                     optional="hide"
                 />
-            </tree>
+            </list>
         </field>
     </record>
     <!-- Inherit Form View to Modify it -->
@@ -96,14 +94,14 @@
                 <button
                     name="action_propose_payment_distribution"
                     class="btn"
-                    states="draft"
+                    invisible="state != 'draft'"
                     string="Propose Payment Distribution"
                     type="object"
                 />
                 <button
                     name="action_delete_counterpart_lines"
                     class="btn"
-                    states="draft"
+                    invisible="state != 'draft'"
                     string="Delete Counterpart Lines"
                     type="object"
                 />
@@ -113,27 +111,24 @@
                     name="context"
                 >{'account_payment_lines': 'payment'}</attribute>
             </xpath>
-            <xpath expr="//field[@name='company_id']" position="after">
-                <field name="user_id" invisible="1" />
-            </xpath>
             <xpath expr="//sheet/group" position="after">
-                <notebook attrs="{'invisible': [('is_internal_transfer', '=', True)]}">
+                <notebook>
                     <page string="Counterpart Lines">
                         <field
                             name="line_payment_counterpart_ids"
                             nolabel="1"
                             context="{'default_partner_id': partner_id}"
-                            attrs="{'readonly': [('state', '=', 'posted')]}"
-                            colspan="4"
+                            readonly="state == 'posted'"
+                            colspan="2"
                         />
                     </page>
                 </notebook>
             </xpath>
-            <xpath expr="//field[@name='destination_journal_id']" position="after">
+            <xpath expr="//group[@name='group2']" position="inside">
                 <field
                     name="writeoff_account_id"
                     options="{'no_create': True}"
-                    attrs="{'readonly': ['|', ('state', '!=', 'draft'), ('is_internal_transfer', '=', True)]}"
+                    readonly="state != 'draft'"
                 />
             </xpath>
         </field>
