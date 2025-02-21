@@ -17,19 +17,19 @@ Account Payment Terms Discount
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Faccount--payment-lightgray.png?logo=github
-    :target: https://github.com/OCA/account-payment/tree/16.0/account_payment_term_discount
+    :target: https://github.com/OCA/account-payment/tree/18.0/account_payment_term_discount
     :alt: OCA/account-payment
 .. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
-    :target: https://translation.odoo-community.org/projects/account-payment-16-0/account-payment-16-0-account_payment_term_discount
+    :target: https://translation.odoo-community.org/projects/account-payment-18-0/account-payment-18-0-account_payment_term_discount
     :alt: Translate me on Weblate
 .. |badge5| image:: https://img.shields.io/badge/runboat-Try%20me-875A7B.png
-    :target: https://runboat.odoo-community.org/builds?repo=OCA/account-payment&target_branch=16.0
+    :target: https://runboat.odoo-community.org/builds?repo=OCA/account-payment&target_branch=18.0
     :alt: Try me on Runboat
 
 |badge1| |badge2| |badge3| |badge4| |badge5|
 
-This module allows to set special discount for customer within periods of
-discount days.
+This module allows to set special discount for customer within periods
+of discount days.
 
 **Table of contents**
 
@@ -39,24 +39,25 @@ discount days.
 Configuration
 =============
 
-* Go to Accounting > Configuration > Management > Payment Terms
-* Create payment terms. Make sure the is cash discount box is checked.
-* Add landed costs by selecting the landed cost product and entering the
-  percentage
-* Add terms lines and provide discount percentage, discount days, expense and
-  income account.
+-  Go to Accounting > Configuration > Management > Payment Terms
+-  Create payment terms. Make sure the is cash discount box is checked.
+-  Add landed costs by selecting the landed cost product and entering
+   the percentage
+-  Add terms lines and provide discount percentage, discount days,
+   expense and income account.
 
 Usage
 =====
 
-* Create customer invoice and validate it.
-* Apply register payment and set payment date which come eariler to discount
-  days. For example: customer invoice amount is $1,000 and special discount(5%)
-  available if payment done within 10 days. If customer will pay within 10 days,
-  then register payment amount will be $950. System will make it as paid
-  invoice. Because $50 is 5% discount of $1000 (customer invoice total amount.)
-  If customer will pay $900 then invoice will be stay in open state. Because
-  $100 is greater than of $50.
+-  Create customer invoice and validate it.
+-  Apply register payment and set payment date which come eariler to
+   discount days. For example: customer invoice amount is $1,000 and
+   special discount(5%) available if payment done within 10 days. If
+   customer will pay within 10 days, then register payment amount will
+   be $950. System will make it as paid invoice. Because $50 is 5%
+   discount of $1000 (customer invoice total amount.) If customer will
+   pay $900 then invoice will be stay in open state. Because $100 is
+   greater than of $50.
 
 Bug Tracker
 ===========
@@ -64,7 +65,7 @@ Bug Tracker
 Bugs are tracked on `GitHub Issues <https://github.com/OCA/account-payment/issues>`_.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
-`feedback <https://github.com/OCA/account-payment/issues/new?body=module:%20account_payment_term_discount%0Aversion:%2016.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
+`feedback <https://github.com/OCA/account-payment/issues/new?body=module:%20account_payment_term_discount%0Aversion:%2018.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
 
 Do not contact contributors directly about support or help with technical issues.
 
@@ -72,26 +73,26 @@ Credits
 =======
 
 Authors
-~~~~~~~
+-------
 
 * Open Source Integrators
 
 Contributors
-~~~~~~~~~~~~
+------------
 
-* Bhavesh Odedra <bodedra@opensourceintegrators.com>
-* Balaji Kannan <bkannan@opensourceintegrators.com>
-* Raphael Lee <rlee@opensourceintegrators.com>
-* Hardik Suthar <hsuthar@opensourceintegrators.com>
+-  Bhavesh Odedra <bodedra@opensourceintegrators.com>
+-  Balaji Kannan <bkannan@opensourceintegrators.com>
+-  Raphael Lee <rlee@opensourceintegrators.com>
+-  Hardik Suthar <hsuthar@opensourceintegrators.com>
 
 Other credits
-~~~~~~~~~~~~~
+-------------
 
-* ChriCar Beteiligungs- und Beratungs- GmbH (http://www.camptocamp.at)
-* Open Source Integrators (https://www.opensourceintegrators.com)
+-  ChriCar Beteiligungs- und Beratungs- GmbH (http://www.camptocamp.at)
+-  Open Source Integrators (https://www.opensourceintegrators.com)
 
 Maintainers
-~~~~~~~~~~~
+-----------
 
 This module is maintained by the OCA.
 
@@ -111,6 +112,6 @@ Current `maintainer <https://odoo-community.org/page/maintainer-role>`__:
 
 |maintainer-bodedra| 
 
-This module is part of the `OCA/account-payment <https://github.com/OCA/account-payment/tree/16.0/account_payment_term_discount>`_ project on GitHub.
+This module is part of the `OCA/account-payment <https://github.com/OCA/account-payment/tree/18.0/account_payment_term_discount>`_ project on GitHub.
 
 You are welcome to contribute. To learn how please visit https://odoo-community.org/page/Contribute.

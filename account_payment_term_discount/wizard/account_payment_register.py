@@ -42,7 +42,6 @@ class AccountPaymentRegister(models.TransientModel):
             and self.invoice_id.invoice_payment_term_id.is_discount
             and self.invoice_id.invoice_payment_term_id.line_ids
         ):
-
             self.payment_difference_handling = "open"
             self.writeoff_account_id = False
             self.writeoff_label = False
@@ -84,7 +83,6 @@ class AccountPaymentRegister(models.TransientModel):
                     )
                     # changing payment date
                     if not payment_difference and discount_amt:
-
                         self.payment_difference = discount_amt
                         self.payment_difference_handling = "reconcile"
                         self.writeoff_account_id = discount_account.id
@@ -105,7 +103,6 @@ class AccountPaymentRegister(models.TransientModel):
                         self.writeoff_label = False
                     # customer paying more than discount_amt
                     elif payment_difference == discount_amt and discount_amt > 0:
-
                         self.payment_difference = abs(payment_difference)
                         self.payment_difference_handling = "reconcile"
                         self.writeoff_account_id = discount_account.id
