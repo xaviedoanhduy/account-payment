@@ -12,14 +12,11 @@
                 <field
                     name="discount_taken"
                     readonly="1"
-                    attrs="{'invisible': [('state', '!=', 'posted'), ('check_payment_discount', '=', False)]}"
+                    invisible="state != 'posted' and not check_payment_discount"
                 />
             </field>
             <xpath expr="//page[@name='other_info']/group/group[2]" position="after">
-                <group
-                    string="Discount Details"
-                    attrs="{'invisible': [('discount_amt', '=', 0)]}"
-                >
+                <group string="Discount Details" invisible="discount_amt == 0">
                     <field name="discount_amt" readonly="1" />
                     <field name="discount_date" />
                 </group>

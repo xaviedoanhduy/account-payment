@@ -1,6 +1,5 @@
 # Copyright 2018 Open Source Integrators (http://www.opensourceintegrators.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
-from collections import defaultdict
 
 from dateutil.relativedelta import relativedelta
 
@@ -30,36 +29,31 @@ class AccountMove(models.Model):
         compute="_compute_shipping_lines_total",
     )
 
-    @api.onchange("amount_residual", "invoice_payment_term_id", "invoice_date")
-    @api.depends("state")
+    @api.depends("state", "amount_residual", "invoice_payment_term_id", "invoice_date")
     def _compute_discount_amt(self):
-        for invoice in self:
-            if invoice.invoice_payment_term_id:
-                discount_information = (
-                    invoice.invoice_payment_term_id._check_payment_term_discount(
-                        invoice
-                    )
-                )
-                if discount_information[0] > 0.0:
-                    invoice.discount_amt = abs(round(discount_information[0], 2))
-                    # If discount taken make disc amt to 0 as disc is no more valid
-                    if invoice.discount_taken != 0:
-                        invoice.discount_amt = 0
-                else:
-                    invoice.discount_amt = 0.0
+        for invoice in self.filtered("invoice_payment_term_id"):
+            discount_information = (
+                invoice.invoice_payment_term_id._check_payment_term_discount(invoice)
+            )
+            if discount_information[0] > 0.0:
+                invoice.discount_amt = abs(round(discount_information[0], 2))
+                # If discount taken make disc amt to 0 as disc is no more valid
+                if invoice.discount_taken != 0:
+                    invoice.discount_amt = 0
+            else:
+                invoice.discount_amt = 0.0
 
     @api.depends("invoice_date", "invoice_payment_term_id")
     def _compute_discount_date(self):
         "This will retain a value based on invoice date and discount term"
         for invoice in self:
             disc_date = False
-            for line in invoice.invoice_payment_term_id.line_ids:
-                if line.is_discount is True:
-                    invoice_date = (
-                        fields.Date.from_string(invoice.invoice_date)
-                        or fields.Date.today()
-                    )
-                    disc_date = invoice_date + relativedelta(days=line.discount_days)
+            payment_term = invoice.invoice_payment_term_id
+            if payment_term.early_discount:
+                invoice_date = invoice.invoice_date or fields.Date.today()
+                disc_date = invoice_date + relativedelta(
+                    days=payment_term.discount_days
+                )
             # Empty disc date if pass today's date or discount already used
             if disc_date and (
                 disc_date <= fields.Date.today() or invoice.discount_taken != 0
@@ -67,10 +61,9 @@ class AccountMove(models.Model):
                 disc_date = False
             invoice.discount_date = disc_date
 
-    @api.onchange("amount_residual", "invoice_payment_term_id", "invoice_date")
+    @api.depends("amount_residual", "invoice_payment_term_id", "invoice_date")
     def _compute_payment_disc(self):
         for invoice in self:
-            flag = False
             if invoice.invoice_payment_term_id:
                 discount_information = (
                     invoice.invoice_payment_term_id._check_payment_term_discount(
@@ -78,25 +71,16 @@ class AccountMove(models.Model):
                     )
                 )
                 if discount_information[0] > 0.0:
-                    flag = True
-            invoice.check_payment_discount = flag
+                    invoice.check_payment_discount = True
+                    continue
+            invoice.check_payment_discount = False
 
     @api.depends("invoice_line_ids")
     def _compute_shipping_lines_total(self):
         for invoice in self:
             shipping_lines_total = 0.0
             for line in invoice.invoice_line_ids.filtered(
-                lambda l: l.product_id.is_exclude_shipping_amount
+                lambda x: x.product_id.is_exclude_shipping_amount
             ):
                 shipping_lines_total += line.price_subtotal
             invoice.shipping_lines_total = shipping_lines_total
-
-    def _get_invoice_counterpart_amls_for_early_payment_discount_per_payment_term_line(
-        self,
-    ):
-        res = (
-            super()._get_invoice_counterpart_amls_for_early_payment_discount_per_payment_term_line()  # noqa
-        )
-        if self.invoice_payment_term_id.is_exclude_taxes_discount:
-            res["tax_lines"] = defaultdict(lambda: {})
-        return res

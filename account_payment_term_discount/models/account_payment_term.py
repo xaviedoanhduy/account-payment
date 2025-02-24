@@ -4,49 +4,38 @@
 
 from dateutil.relativedelta import relativedelta
 
-from odoo import api, fields, models
+from odoo import fields, models
 
 
 class AccountPaymentTerm(models.Model):
     _inherit = "account.payment.term"
 
-    is_discount = fields.Boolean(
-        string="Early Payment Discount",
-        help="Check this box if this payment term has a discount. "
-        "If discount is used the remaining amount of the invoice "
-        "will not be paid",
-    )
     is_exclude_shipping_lines = fields.Boolean(
         string="Exclude Shipping from Discount",
         help="Check this box if you want to exclude shipping charges from discount",
     )
-    is_exclude_taxes_discount = fields.Boolean(
-        string="Exclude Taxes from Discount",
-        help="Check this box if want to exclude taxes from discount",
+    discount_income_account_id = fields.Many2one(
+        "account.account",
+        string="Discount on Purchases Account",
+        help="This account will be used to post the discount on purchases.",
+    )
+    discount_expense_account_id = fields.Many2one(
+        "account.account",
+        string="Discount on Sales Account",
+        help="This account will be used to post the discount on sales.",
     )
 
     def _get_payment_term_discount(self, invoice=None, payment_date=None, amount=0.0):
         payment_discount = 0.0
         discount_account_id = 0.0
-        for payment_term in self:
-            for line in payment_term.line_ids:
-                # Check payment date discount validation
-                invoice_date = fields.Date.from_string(
-                    invoice.invoice_date or payment_date
-                )
-                till_discount_date = invoice_date + relativedelta(
-                    days=line.discount_days
-                )
-
-                if line.discount_percentage and payment_date <= till_discount_date:
-                    payment_discount = round(
-                        (amount * line.discount_percentage) / 100.0, 2
-                    )
-                    if invoice.move_type in ("out_invoice", "in_refund"):
-                        discount_account_id = line.discount_expense_account_id.id
-                    else:
-                        discount_account_id = line.discount_income_account_id.id
-                    break
+        invoice_date = fields.Date.from_string(invoice.invoice_date or payment_date)
+        till_discount_date = invoice_date + relativedelta(days=self.discount_days)
+        if self.discount_percentage and payment_date <= till_discount_date:
+            payment_discount = round((amount * self.discount_percentage) / 100.0, 2)
+            if invoice.move_type in ("out_invoice", "in_refund"):
+                discount_account_id = self.discount_expense_account_id.id
+            else:
+                discount_account_id = self.discount_income_account_id.id
         return abs(payment_discount), discount_account_id, abs(amount)
 
     def _check_payment_term_discount(self, invoice=None, payment_date=None):
@@ -60,15 +49,13 @@ class AccountPaymentTerm(models.Model):
         else:
             payment_date = fields.Date.from_string(payment_date)
 
-        for payment_term in self.filtered(lambda p: p.is_discount):
-            if payment_term.is_exclude_taxes_discount:
-                amount = invoice.amount_untaxed_signed
-            else:
+        for payment_term in self.filtered(lambda p: p.early_discount):
+            if payment_term.early_pay_discount_computation == "included":
                 amount = invoice.amount_total
-
+            else:
+                amount = invoice.amount_untaxed_signed
             if payment_term.is_exclude_shipping_lines:
                 amount -= invoice.shipping_lines_total
-
             discount_information = payment_term._get_payment_term_discount(
                 invoice, payment_date, amount
             )
@@ -76,27 +63,3 @@ class AccountPaymentTerm(models.Model):
             discount_account_id = discount_information[1]
             applied_amount_total = invoice.amount_residual
         return payment_discount, discount_account_id, applied_amount_total
-
-
-class AccountPaymentTermLine(models.Model):
-    _inherit = "account.payment.term.line"
-
-    is_discount = fields.Boolean(
-        related="payment_id.is_discount", string="Early Payment Discount", readonly=True
-    )
-    discount_income_account_id = fields.Many2one(
-        "account.account",
-        string="Discount on Purchases Account",
-        help="This account will be used to post the discount on purchases.",
-    )
-    discount_expense_account_id = fields.Many2one(
-        "account.account",
-        string="Discount on Sales Account",
-        help="This account will be used to post the discount on sales.",
-    )
-
-    @api.onchange("discount_percentage")
-    def OnchangeDiscount(self):
-        if not self.discount_percentage:
-            return {}
-        self.value_amount = round(1 - (self.discount_percentage / 100.0), 2)
