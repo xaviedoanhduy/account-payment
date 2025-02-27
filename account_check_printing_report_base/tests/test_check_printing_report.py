@@ -10,43 +10,42 @@ from odoo.tests.common import TransactionCase
 
 
 class TestAccountCheckPrintingReportBase(TransactionCase):
-    def setUp(self):
-        super().setUp()
-        self.langs = ("en_US", "es_ES")
-        self.rl = self.env["res.lang"]
-        for lang in self.langs:
-            if not self.rl.search([("code", "=", lang)]):
-                self.rl._activate_lang(lang)
-        self.account_invoice_model = self.env["account.move"]
-        self.journal_model = self.env["account.journal"]
-        self.payment_method_model = self.env["account.payment.method"]
-        self.payment_method_line_model = self.env["account.payment.method.line"]
-        self.account_account_model = self.env["account.account"]
-        self.payment_model = self.env["account.payment"]
-        self.report = self.env[
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.langs = ("en_US", "es_ES")
+        cls.rl = cls.env["res.lang"]
+        for lang in cls.langs:
+            if not cls.rl.search([("code", "=", lang)]):
+                cls.rl._activate_lang(lang)
+        cls.account_invoice_model = cls.env["account.move"]
+        cls.journal_model = cls.env["account.journal"]
+        cls.payment_method_model = cls.env["account.payment.method"]
+        cls.payment_method_line_model = cls.env["account.payment.method.line"]
+        cls.account_account_model = cls.env["account.account"]
+        cls.payment_model = cls.env["account.payment"]
+        cls.report = cls.env[
             "report.account_check_printing_report_base.report_check_base"
         ]
 
-        self.partner1 = self.env.ref("base.res_partner_1")
-        self.company = self.env.ref("base.main_company")
-        self.currency_usd_id = self.env.ref("base.USD").id
-        self.currency_euro_id = self.env.ref("base.EUR").id
-        self.product = self.env.ref("product.product_product_4")
-        self.check_report = (
-            "account_check_printing_report_base.action_report_check_base"
-        )
-        self.check_report_a4 = (
+        cls.partner1 = cls.env.ref("base.res_partner_1")
+        cls.company = cls.env.ref("base.main_company")
+        cls.currency_usd_id = cls.env.ref("base.USD").id
+        cls.currency_euro_id = cls.env.ref("base.EUR").id
+        cls.product = cls.env.ref("product.product_product_4")
+        cls.check_report = "account_check_printing_report_base.action_report_check_base"
+        cls.check_report_a4 = (
             "account_check_printing_report_base.action_report_check_base_a4"
         )
-        self.action_check_report = self.env.ref(
+        cls.action_check_report = cls.env.ref(
             "account_check_printing_report_base.action_report_check_base"
         )
-        self.payment_method_check = self.payment_method_model.search(
+        cls.payment_method_check = cls.payment_method_model.search(
             [("code", "=", "check_printing")],
             limit=1,
         )
-        if not self.payment_method_check:
-            self.payment_method_check = self.payment_method_model.create(
+        if not cls.payment_method_check:
+            cls.payment_method_check = cls.payment_method_model.create(
                 {
                     "name": "Check",
                     "code": "check_printing",
@@ -54,10 +53,10 @@ class TestAccountCheckPrintingReportBase(TransactionCase):
                     "check": True,
                 }
             )
-        self.purchase_journal = self.journal_model.create(
+        cls.purchase_journal = cls.journal_model.create(
             {"name": "Purchase Journal - Test", "type": "purchase", "code": "Test"}
         )
-        self.bank_journal = self.journal_model.create(
+        cls.bank_journal = cls.journal_model.create(
             {
                 "name": "Cash Journal - Test",
                 "type": "bank",
@@ -65,38 +64,39 @@ class TestAccountCheckPrintingReportBase(TransactionCase):
                 "check_manual_sequencing": True,
             }
         )
-        self.payment_method_line_check = self.payment_method_line_model.create(
+        cls.payment_method_line_check = cls.payment_method_line_model.create(
             {
                 "name": "Check",
-                "payment_method_id": self.payment_method_check.id,
-                "journal_id": self.bank_journal.id,
+                "payment_method_id": cls.payment_method_check.id,
+                "journal_id": cls.bank_journal.id,
             }
         )
-        self.acc_payable = self._create_account(
+        cls.acc_payable = cls._create_account(
             "account payable test", "ACPRB1", "liability_payable", True
         )
-        self.vendor_bill = self._create_vendor_bill(self.acc_payable)
-        self.vendor_bill.invoice_date = time.strftime("%Y") + "-07-15"
-        self.acc_expense = self._create_account(
+        cls.vendor_bill = cls._create_vendor_bill(cls.acc_payable)
+        cls.vendor_bill.invoice_date = time.strftime("%Y") + "-07-15"
+        cls.acc_expense = cls._create_account(
             "account expense test", "ACPRB2", "expense", False
         )
-        self._create_invoice_line(self.acc_expense, self.vendor_bill)
+        cls._create_invoice_line(cls.acc_expense, cls.vendor_bill)
 
-        self.vendor_bill.action_post()
+        cls.vendor_bill.action_post()
         # Pay the invoice using a bank journal associated to the main company
-        ctx = {"active_model": "account.move", "active_ids": [self.vendor_bill.id]}
-        register_payments = self.payment_model.with_context(**ctx).create(
+        ctx = {"active_model": "account.move", "active_ids": [cls.vendor_bill.id]}
+        register_payments = cls.payment_model.with_context(**ctx).create(
             {
                 "date": time.strftime("%Y") + "-07-15",
-                "journal_id": self.bank_journal.id,
-                "payment_method_line_id": self.payment_method_line_check.id,
+                "journal_id": cls.bank_journal.id,
+                "payment_method_line_id": cls.payment_method_line_check.id,
             }
         )
         register_payments.action_post()
-        self.payment = self.payment_model.search([], order="id desc", limit=1)
+        cls.payment = cls.payment_model.search([], order="id desc", limit=1)
 
-    def _create_account(self, name, code, account_type, reconcile):
-        account = self.account_account_model.create(
+    @classmethod
+    def _create_account(cls, name, code, account_type, reconcile):
+        account = cls.account_account_model.create(
             {
                 "name": name,
                 "code": code,
@@ -106,19 +106,21 @@ class TestAccountCheckPrintingReportBase(TransactionCase):
         )
         return account
 
-    def _create_vendor_bill(self, account):
-        vendor_bill = self.account_invoice_model.create(
+    @classmethod
+    def _create_vendor_bill(cls, account):
+        vendor_bill = cls.account_invoice_model.create(
             {
                 "move_type": "in_invoice",
-                "partner_id": self.partner1.id,
-                "currency_id": self.company.currency_id.id,
-                "journal_id": self.purchase_journal.id,
-                "company_id": self.company.id,
+                "partner_id": cls.partner1.id,
+                "currency_id": cls.company.currency_id.id,
+                "journal_id": cls.purchase_journal.id,
+                "company_id": cls.company.id,
             }
         )
         return vendor_bill
 
-    def _create_invoice_line(self, account, invoice):
+    @classmethod
+    def _create_invoice_line(cls, account, invoice):
         invoice = invoice.write(
             {
                 "invoice_line_ids": [
@@ -130,7 +132,7 @@ class TestAccountCheckPrintingReportBase(TransactionCase):
                             "account_id": account.id,
                             "quantity": 1.000,
                             "price_unit": 2.99,
-                            "product_id": self.product.id,
+                            "product_id": cls.product.id,
                         },
                     )
                 ]
