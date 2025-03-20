@@ -21,7 +21,7 @@ Available addons
 ----------------
 addon | version | maintainers | summary
 --- | --- | --- | ---
-[account_cash_invoice](account_cash_invoice/) | 16.0.1.0.2 |  | Pay and receive invoices from bank statements
+[account_cash_invoice](account_cash_invoice/) | 16.0.1.0.3 |  | Pay and receive invoices from bank statements
 [account_check_printing_report_base](account_check_printing_report_base/) | 16.0.1.0.0 |  | Account Check Printing Report Base
 [account_due_list](account_due_list/) | 16.0.1.2.1 |  | List of open credits and debits, with due date
 [account_due_list_aging_comment](account_due_list_aging_comment/) | 16.0.1.0.0 |  | Account Due List Aging Comment
@@ -30,7 +30,7 @@ addon | version | maintainers | summary
 [account_move_line_payment](account_move_line_payment/) | 16.0.1.0.0 | [![yajo](https://github.com/yajo.png?size=30px)](https://github.com/yajo) [![rafaelbn](https://github.com/rafaelbn.png?size=30px)](https://github.com/rafaelbn) | Register only due payments
 [account_payment_batch_process](account_payment_batch_process/) | 16.0.1.0.1 |  | Account Batch Payments Processing for Customers Invoices and Supplier Invoices
 [account_payment_batch_process_discount](account_payment_batch_process_discount/) | 16.0.1.0.0 | [![mgosai](https://github.com/mgosai.png?size=30px)](https://github.com/mgosai) | Discount on batch payments
-[account_payment_credit_card](account_payment_credit_card/) | 16.0.1.0.0 | [![max3903](https://github.com/max3903.png?size=30px)](https://github.com/max3903) | Add support for credit card payments
+[account_payment_credit_card](account_payment_credit_card/) | 16.0.1.0.1 | [![max3903](https://github.com/max3903.png?size=30px)](https://github.com/max3903) | Add support for credit card payments
 [account_payment_line](account_payment_line/) | 16.0.1.0.1 | [![ChrisOForgeFlow](https://github.com/ChrisOForgeFlow.png?size=30px)](https://github.com/ChrisOForgeFlow) | Payment Counterpart Lines
 [account_payment_line_import](account_payment_line_import/) | 16.0.1.0.0 | [![ChrisOForgeFlow](https://github.com/ChrisOForgeFlow.png?size=30px)](https://github.com/ChrisOForgeFlow) | Payment Counterpart Lines Import XLSX
 [account_payment_multi_deduction](account_payment_multi_deduction/) | 16.0.1.0.0 | [![kittiu](https://github.com/kittiu.png?size=30px)](https://github.com/kittiu) | Payment Register with Multiple Deduction
