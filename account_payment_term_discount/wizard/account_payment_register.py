@@ -138,3 +138,27 @@ class AccountPaymentRegister(models.TransientModel):
                     }
                 )
         return res
+
+    def _get_total_amount_using_same_currency(
+        self, batch_result, early_payment_discount=True
+    ):
+        amount, mode = super()._get_total_amount_using_same_currency(
+            batch_result=batch_result, early_payment_discount=early_payment_discount
+        )
+        invoice = self.invoice_id
+        payment_term = invoice.invoice_payment_term_id
+        amount_untaxed = invoice.amount_untaxed_signed
+        if mode == "early_payment" and payment_term.is_exclude_taxes_discount:
+            amount, _ = super()._get_total_amount_using_same_currency(
+                batch_result=batch_result, early_payment_discount=False
+            )
+            payment_date = self.payment_date
+            if not payment_date:
+                payment_date = fields.Date.context_today(self)
+            else:
+                payment_date = fields.Date.from_string(payment_date)
+            payment_discount, _, _ = payment_term._get_payment_term_discount(
+                invoice=invoice, payment_date=payment_date, amount=amount_untaxed
+            )
+            amount -= payment_discount
+        return amount, mode
