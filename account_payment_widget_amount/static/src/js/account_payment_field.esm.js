@@ -1,4 +1,3 @@
-/** @odoo-module **/
 /* global document */
 
 import {AccountPaymentField} from "@account/components/account_payment_field/account_payment_field";
@@ -51,8 +50,8 @@ patch(AccountPaymentField.prototype, {
         }
     },
     async _onOutstandingCreditAssign(ev) {
-        var id = parseInt($(ev.target).data("id"), 10);
-        var move_id = parseInt($(ev.target).data("move_id"), 10);
+        var id = parseInt(ev.target.dataset.id, 10);
+        var move_id = parseInt(ev.target.dataset.move_id, 10);
         var payment_amount =
             parseFloat(document.getElementById("paid_amount").value) || 0.0;
         var context = {
