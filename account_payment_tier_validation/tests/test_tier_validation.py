@@ -8,7 +8,7 @@ from odoo.addons.base.tests.common import BaseCommon
 
 
 @tagged("post_install", "-at_install")
-class TestAccountPaymentTestCI(BaseCommon):
+class TestAccountPayment(BaseCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -70,8 +70,11 @@ class TestAccountPaymentTestCI(BaseCommon):
                 "partner_id": self.customer.id,
             }
         )
-        reviews = payment.with_user(self.env.user.id).request_validation()
+        payment.invalidate_model()
         self.assertEqual(payment.validation_status, "no")
+        reviews = payment.with_user(self.env.user.id).request_validation()
+        payment.invalidate_model()
+        self.assertEqual(payment.validation_status, "waiting")
         self.assertTrue(reviews)
         record = payment.with_user(self.test_user_1.id)
         record.invalidate_model()
