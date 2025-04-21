@@ -1,6 +1,6 @@
-=======================
-Payment Tier Validation
-=======================
+===============================
+Payment Tier Validation Test CI
+===============================
 
 .. 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -63,11 +63,11 @@ To use this module, you need to:
 
 Additional features:
 
-- You can filter the Payments requesting your review through the filter
-  *Needs my Review*.
-- User with rights to confirm the payment (validate all tiers that would
-  be generated) can directly do the operation, this is, there is no need
-  for her/him to request a validation.
+-  You can filter the Payments requesting your review through the filter
+   *Needs my Review*.
+-  User with rights to confirm the payment (validate all tiers that
+   would be generated) can directly do the operation, this is, there is
+   no need for her/him to request a validation.
 
 Known issues / Roadmap
 ======================
@@ -91,9 +91,9 @@ Credits
 Contributors
 ------------
 
-- `Spearhead <https://spearhead.global/>`__:
+-  `Spearhead <https://spearhead.global/>`__:
 
-     Ricardo Jara <rjara@spearhead.global>
+      Ricardo Jara <rjara@spearhead.global>
 
 Maintainers
 -----------

@@ -8,7 +8,7 @@ from odoo.addons.base.tests.common import BaseCommon
 
 
 @tagged("post_install", "-at_install")
-class TestAccountPayment(BaseCommon):
+class TestAccountPaymentTestCI(BaseCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
