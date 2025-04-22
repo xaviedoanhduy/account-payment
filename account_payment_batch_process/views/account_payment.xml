@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-
     <!-- Payment Tree View -->
     <record id="view_account_payment_tree_nocreate" model="ir.ui.view">
         <field name="name">account.payment.tree.nocreate</field>
@@ -25,5 +24,4 @@
             </tree>
         </field>
     </record>
-
 </odoo>

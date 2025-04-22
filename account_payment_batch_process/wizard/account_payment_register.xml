@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-
     <!-- Inherited view for Register Payment as Batch -->
     <record id="view_account_payment_from_invoices_batch_inherited" model="ir.ui.view">
         <field name="name">account.payment.register.wizard.batch.inherited
@@ -109,14 +108,13 @@
     </record>
 
     <record id="action_invoice_invoice_batch_process" model="ir.actions.act_window">
-            <field name="name">Batch Payments</field>
-            <field name="type">ir.actions.act_window</field>
-            <field name="res_model">account.payment.register</field>
-            <field name="view_mode">form</field>
-            <field name="target">new</field>
-            <field name="binding_model_id" ref="account.model_account_move" />
-            <field name="binding_view_types">list</field>
-            <field name="context">{'batch':True}</field>
-     </record>
-
+        <field name="name">Batch Payments</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">account.payment.register</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="account.model_account_move" />
+        <field name="binding_view_types">list</field>
+        <field name="context">{'batch':True}</field>
+    </record>
 </odoo>
