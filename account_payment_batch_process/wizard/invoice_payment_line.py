@@ -3,7 +3,7 @@
 import logging
 import math
 
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.tools import float_round
 
@@ -15,27 +15,12 @@ except ImportError:
     )
     num2words = None
 
-MAP_INVOICE_TYPE_PARTNER_TYPE = {
-    "out_invoice": "customer",
-    "out_refund": "customer",
-    "in_invoice": "supplier",
-    "in_refund": "supplier",
-}
-
-# Since invoice amounts are unsigned,
-# this is how we know if money comes in or goes out
-MAP_INVOICE_TYPE_PAYMENT_SIGN = {
-    "out_invoice": 1,
-    "in_refund": 1,
-    "in_invoice": -1,
-    "out_refund": -1,
-}
-
 
 class InvoicePaymentLine(models.TransientModel):
     _name = "invoice.payment.line"
     _description = "Invoice Payment Line"
     _rec_name = "invoice_id"
+    _check_company_auto = True
 
     @api.depends("amount")
     def _compute_payment_difference(self):
@@ -64,18 +49,23 @@ class InvoicePaymentLine(models.TransientModel):
         string="Account",
         domain=[("deprecated", "!=", True)],
         copy=False,
+        check_company=True,
     )
     reason_code = fields.Many2one("payment.adjustment.reason")
     note = fields.Text()
+    company_id = fields.Many2one(
+        comodel_name="res.company", default=lambda self: self.env.company
+    )
 
     @api.onchange("amount")
     def _onchange_amount(self):
         check_amount_in_words = num2words(math.floor(self.amount), lang="en").title()
         decimals = self.amount % 1
         if decimals >= 10**-2:
-            check_amount_in_words += _(" and %s/100") % str(
+            check_amount = str(
                 int(round(float_round(decimals * 100, precision_rounding=1)))
             )
+            check_amount_in_words += self.env._(f" and {check_amount}/100")
         self.check_amount_in_words = check_amount_in_words
         self.payment_difference = self.balance - self.amount
 
@@ -84,18 +74,18 @@ class InvoicePaymentLine(models.TransientModel):
         """
         Raise warning while the invoice is changed.
         """
-        raise ValidationError(_("Invoice is unchangeable!"))
+        raise ValidationError(self.env._("Invoice is unchangeable!"))
 
     @api.onchange("partner_id")
     def _onchange_partner_id(self):
         """
         Raise warning while the Customer is changed.
         """
-        raise ValidationError(_("Partner is unchangeable!"))
+        raise ValidationError(self.env._("Partner is unchangeable!"))
 
     @api.onchange("balance")
     def _onchange_balance(self):
         """
         Raise warning while the Balance Amount is changed.
         """
-        raise ValidationError(_("Balance is unchangeable!"))
+        raise ValidationError(self.env._("Balance is unchangeable!"))

@@ -10,13 +10,10 @@
             <xpath expr="//group" position="after">
                 <group invisible="not context.get('batch', False)">
                     <field name="is_customer" invisible="1" />
-                    <group
-                        string="Vendor Bills to Pay"
-                        attrs="{'invisible': [('is_customer', '=', True)]}"
-                    />
+                    <group string="Vendor Bills to Pay" invisible="is_customer" />
                     <group
                         string="Customer Invoices Being Paid"
-                        attrs="{'invisible': [('is_customer', '=', False)]}"
+                        invisible="not is_customer"
                     />
                 </group>
                 <div invisible="not context.get('batch', False)">
@@ -27,7 +24,7 @@
                         class="oe_highlight btn"
                     />
                     <field name="invoice_payments" nolabel="1">
-                        <tree editable="bottom" create="false">
+                        <list editable="bottom" create="false">
                             <field
                                 name="partner_id"
                                 options="{'no_create_edit': True}"
@@ -38,36 +35,41 @@
                             />
                             <field name="balance" />
                             <field name="amount" />
-                            <field name="check_amount_in_words" invisible="1" />
+                            <field name="check_amount_in_words" column_invisible="1" />
                             <field name="payment_difference_handling" />
                             <field name="payment_difference" />
                             <field
                                 name="writeoff_account_id"
                                 string="Post Difference In"
-                                attrs="{'required': [('payment_difference_handling', '=', 'reconcile'),('payment_difference', '!=', 0.0)]}"
+                                required="payment_difference_handling == 'reconcile' and payment_difference != 0.0"
                             />
                             <field name="reason_code" />
                             <field
                                 name="note"
-                                attrs="{'required': [('payment_difference_handling', '=', 'reconcile'),('payment_difference', '!=', 0.0)]}"
+                                required="payment_difference_handling == 'reconcile' and payment_difference != 0.0"
                             />
-                        </tree>
+                        </list>
                     </field>
-                    <div class="oe_right mt-xl-1">
-                        <label
-                            for="total_amount"
-                            string="Total Invoices:"
-                            class="text-dark"
-                        />
-                        <field name="total_amount" no_label="1" />
-                    </div>
+                    <group class="oe_subtotal_footer">
+                        <field name="total_amount" class="text-dark" />
+                    </group>
                 </div>
             </xpath>
             <xpath
-                expr="//button[@name='action_create_payments']"
+                expr="//button[@name='action_create_payments'][1]"
                 position="attributes"
             >
-                <attribute name="invisible">context.get('batch', False)</attribute>
+                <attribute
+                    name="invisible"
+                >total_payments_amount == 1 or context.get('batch', False)</attribute>
+            </xpath>
+            <xpath
+                expr="//button[@name='action_create_payments'][2]"
+                position="attributes"
+            >
+                <attribute
+                    name="invisible"
+                >total_payments_amount != 1 or context.get('batch', False)</attribute>
             </xpath>
             <xpath
                 expr="//form/footer/button[@name='action_create_payments']"
@@ -81,7 +83,10 @@
                     invisible="not context.get('batch', False)"
                 />
             </xpath>
-            <xpath expr="//field[@name='amount']" position="attributes">
+            <xpath expr="//label[@for='amount']" position="attributes">
+                <attribute name="invisible">context.get('batch', False)</attribute>
+            </xpath>
+            <xpath expr="//div[@name='amount_div']" position="attributes">
                 <attribute name="invisible">context.get('batch', False)</attribute>
             </xpath>
             <xpath expr="//field[@name='communication']" position="after">

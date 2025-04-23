@@ -2,15 +2,15 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl.html)
 
 from odoo import Command
-from odoo.tests.common import Form, TransactionCase
+from odoo.tests import Form
+
+from odoo.addons.base.tests.common import BaseCommon
 
 
-class TestAccountPaymentBatchProcess(TransactionCase):
+class TestAccountPaymentBatchProcess(BaseCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-
-        cls.partner = cls.env.ref("base.res_partner_12")
         cls.account_receivable = cls.partner.property_account_receivable_id
         cls.sale_journal = cls.env["account.journal"].search(
             [("type", "=", "sale")], limit=1
@@ -18,11 +18,10 @@ class TestAccountPaymentBatchProcess(TransactionCase):
         cls.account_revenue = cls.env["account.account"].search(
             [
                 ("account_type", "=", "income"),
-                ("company_id", "=", cls.env.company.id),
+                ("company_ids", "in", cls.env.company.ids),
             ],
             limit=1,
         )
-
         cls.cust_invoice_1 = cls.env["account.move"].create(
             {
                 "name": "Test Customer Invoice 1",
@@ -35,13 +34,12 @@ class TestAccountPaymentBatchProcess(TransactionCase):
                             "product_id": cls.env.ref("product.product_product_3").id,
                             "quantity": 1.0,
                             "account_id": cls.account_revenue.id,
-                            "tax_ids": False,
+                            "tax_ids": [Command.clear()],
                         },
                     )
                 ],
             }
         )
-
         cls.cust_invoice_2 = cls.env["account.move"].create(
             {
                 "name": "Test Customer Invoice 2",
@@ -54,7 +52,7 @@ class TestAccountPaymentBatchProcess(TransactionCase):
                             "product_id": cls.env.ref("product.product_product_2").id,
                             "quantity": 1.0,
                             "account_id": cls.account_revenue.id,
-                            "tax_ids": False,
+                            "tax_ids": [Command.clear()],
                         },
                     )
                 ],
@@ -64,7 +62,6 @@ class TestAccountPaymentBatchProcess(TransactionCase):
     def test_auto_fill_payments(self):
         self.cust_invoice_1.action_post()
         self.cust_invoice_2.action_post()
-
         context = {
             "active_model": "account.move",
             "batch": True,

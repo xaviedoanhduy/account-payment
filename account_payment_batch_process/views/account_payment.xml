@@ -2,10 +2,10 @@
 <odoo>
     <!-- Payment Tree View -->
     <record id="view_account_payment_tree_nocreate" model="ir.ui.view">
-        <field name="name">account.payment.tree.nocreate</field>
+        <field name="name">account.payment.list.nocreate</field>
         <field name="model">account.payment</field>
         <field name="arch" type="xml">
-            <tree
+            <list
                 decoration-info="state=='draft'"
                 decoration-muted="state=='reconciled'"
                 edit="false"
@@ -19,9 +19,8 @@
                 <field name="amount" />
                 <field name="company_id" groups="base.group_multi_company" />
                 <field name="state" />
-                <field name="currency_id" invisible="1" />
-                <field name="partner_type" invisible="1" />
-            </tree>
+                <field name="currency_id" column_invisible="1" />
+            </list>
         </field>
     </record>
 </odoo>

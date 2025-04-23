@@ -3,7 +3,7 @@
 import logging
 import math
 
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools import float_round
 from odoo.tools.float_utils import float_compare
@@ -57,7 +57,7 @@ class AccountPaymentRegister(models.TransientModel):
         store=True,
         readonly=False,
     )
-    total_amount = fields.Float("Total Invoices:", compute="_compute_total")
+    total_amount = fields.Float("Total Invoices", compute="_compute_total")
 
     def get_invoice_payment_line(self, invoice):
         return (
@@ -70,7 +70,7 @@ class AccountPaymentRegister(models.TransientModel):
                 "amount": invoice.amount_residual or 0.0,
                 "payment_difference": 0.0,
                 "payment_difference_handling": "reconcile",
-                "note": "Payment of invoice %s" % invoice.name,
+                "note": f"Payment of invoice {invoice.name}",
             },
         )
 
@@ -82,23 +82,25 @@ class AccountPaymentRegister(models.TransientModel):
 
     @api.model
     def default_get(self, fields_list):
-        if self.env.context and not self.env.context.get("batch", False):
-            return super().default_get(fields_list)
         res = super().default_get(fields_list)
         context = dict(self._context or {})
+        is_batch = context.get("batch", False)
+        if not is_batch:
+            return res
         active_model = context.get("active_model")
         active_ids = context.get("active_ids")
         # Checks on context parameters
         if not active_model or not active_ids:
             raise UserError(
-                _(
-                    "The wizard is executed without active_model or active_ids in the context."
+                self.env._(
+                    "The wizard is executed without active_model or active_ids in the context."  # noqa: E501
                 )
             )
         if active_model != "account.move":
             raise UserError(
-                _("The expected model for this action is 'account.move', not '%s'.")
-                % active_model
+                self.env._(
+                    f"The expected model for this action is 'account.move', not '{active_model}'."  # noqa: E501
+                )
             )
         # Checks on received invoice records
         invoices = self.env[active_model].browse(active_ids)
@@ -107,11 +109,13 @@ class AccountPaymentRegister(models.TransientModel):
             or invoice.payment_state not in ["not_paid", "partial"]
             for invoice in invoices
         ):
-            raise UserError(_("You can only register payments for open invoices."))
+            raise UserError(
+                self.env._("You can only register payments for open invoices.")
+            )
 
         if any(inv.payment_mode_id != invoices[0].payment_mode_id for inv in invoices):
             raise UserError(
-                _(
+                self.env._(
                     "You can only register a batch payment for"
                     " invoices with the same payment mode."
                 )
@@ -122,21 +126,19 @@ class AccountPaymentRegister(models.TransientModel):
             for inv in invoices
         ):
             raise UserError(
-                _(
-                    "You cannot mix customer invoices and vendor bills in a single payment."
+                self.env._(
+                    "You cannot mix customer invoices and vendor bills in a single payment."  # noqa: E501
                 )
             )
         if any(inv.currency_id != invoices[0].currency_id for inv in invoices):
             raise UserError(
-                _(
-                    "In order to pay multiple bills at once, they must use the same currency."
+                self.env._(
+                    "In order to pay multiple bills at once, they must use the same currency."  # noqa: E501
                 )
             )
 
-        if "batch" in context and context.get("batch"):
-            is_customer = (
-                MAP_INVOICE_TYPE_PARTNER_TYPE[invoices[0].move_type] == "customer"
-            )
+        is_customer = MAP_INVOICE_TYPE_PARTNER_TYPE[invoices[0].move_type] == "customer"
+        if is_batch:
             payment_lines = self.get_invoice_payments(invoices)
             res.update({"invoice_payments": payment_lines, "is_customer": is_customer})
         else:
@@ -147,8 +149,8 @@ class AccountPaymentRegister(models.TransientModel):
                 for inv in invoices
             ):
                 raise UserError(
-                    _(
-                        "You cannot mix customer invoices and vendor bills in a single payment."
+                    self.env._(
+                        "You cannot mix customer invoices and vendor bills in a single payment."  # noqa: E501
                     )
                 )
 
@@ -157,9 +159,7 @@ class AccountPaymentRegister(models.TransientModel):
             for inv in invoices
         )
         date_format = self.env["res.lang"]._lang_get(self.env.user.lang).date_format
-        communication = "Batch payment of %s" % fields.Date.today().strftime(
-            date_format
-        )
+        communication = f"Batch payment of {fields.Date.today().strftime(date_format)}"
         res.update(
             {
                 "amount": abs(total_amount),
@@ -182,7 +182,7 @@ class AccountPaymentRegister(models.TransientModel):
             and group_data["payment_method_line_id"]
             or self.payment_method_line_id.id,
             "date": self.payment_date,
-            "ref": group_data["memo"],
+            "memo": group_data["memo"],
             "payment_type": self.payment_type,
             "amount": group_data["total"],
             "currency_id": self.currency_id.id,
@@ -229,8 +229,8 @@ class AccountPaymentRegister(models.TransientModel):
     def _check_amounts(self):
         if float_compare(self.total_amount, self.cheque_amount, 2) != 0:
             raise ValidationError(
-                _(
-                    "The pay amount of the invoices and the batch payment total do not match."
+                self.env._(
+                    "The pay amount of the invoices and the batch payment total do not match."  # noqa: E501
                 )
             )
 
@@ -255,9 +255,10 @@ class AccountPaymentRegister(models.TransientModel):
         ).title()
         decimals = (old_total + data_get.amount) % 1
         if decimals >= 10**-2:
-            check_amount_in_words += _(" and %s/100") % str(
+            check_amount = str(
                 int(round(float_round(decimals * 100, precision_rounding=1)))
             )
+            check_amount_in_words += self.env._(f" and {check_amount}/100")
         return check_amount_in_words
 
     def get_payment_invoice_value(self, name, data_get):
@@ -420,7 +421,11 @@ class AccountPaymentRegister(models.TransientModel):
                 .with_context(context)
                 .create(self.get_payment_values(group_data=group_data[partner]))
             )
+
+            invoices = self.env["account.move"].browse(context.get("active_ids"))
+            invoices.matched_payment_ids += payment
             payment_ids.append(payment.id)
+            payment.move_id.action_post()
             payment.action_post()
 
             # Reconciliation
@@ -433,8 +438,7 @@ class AccountPaymentRegister(models.TransientModel):
                 )
                 return line_filter
 
-            payment_lines = payment.line_ids.filtered(_get_line_filter)
-            invoices = self.env["account.move"].browse(context.get("active_ids"))
+            payment_lines = payment.move_id.line_ids.filtered(_get_line_filter)
             lines = invoices.line_ids.filtered(_get_line_filter)
             for account in payment_lines.account_id:
                 (payment_lines + lines).filtered_domain(
@@ -492,7 +496,6 @@ class AccountPaymentRegister(models.TransientModel):
                             continue
                     inv.update(
                         {
-                            "payment_state": payment_state,
                             "amount_residual": group_data[partner]["inv_val"][inv.id][
                                 "payment_difference"
                             ],
@@ -506,14 +509,14 @@ class AccountPaymentRegister(models.TransientModel):
             "account_payment_batch_process.view_account_payment_tree_nocreate"
         ).id
         return {
-            "name": _("Payments"),
+            "name": self.env._("Payments"),
             "view_type": "form",
-            "view_mode": "tree",
+            "view_mode": "list",
             "res_model": "account.payment",
             "view_id": view_id,
             "type": "ir.actions.act_window",
             "target": "new",
-            "domain": "[('id','in',%s)]" % (payment_ids),
+            "domain": f"[('id', 'in', {payment_ids})]",
             "context": {"group_by": "partner_id"},
         }
 
@@ -549,12 +552,9 @@ class AccountPaymentRegister(models.TransientModel):
 
     def auto_fill_payments(self):
         ctx = self._context.copy()
-        batch_payment = self.cheque_amount
-        remaining_amt = batch_payment
-        count = 0
         for wizard in self:
             if wizard.invoice_payments:
-                wizard.get_invoice_payments_remaining_amount(remaining_amt, count)
+                wizard.get_invoice_payments_remaining_amount(self.cheque_amount, 0)
             ctx.update(
                 {
                     "reference": wizard.communication or "",
@@ -562,14 +562,12 @@ class AccountPaymentRegister(models.TransientModel):
                 }
             )
         return {
-            "name": _("Batch Payments"),
+            "name": self.env._("Batch Payments"),
             "view_mode": "form",
             "view_id": False,
-            "view_type": "form",
             "res_id": self.id,
-            "res_model": "account.payment.register",
+            "res_model": self._name,
             "type": "ir.actions.act_window",
-            "nodestroy": True,
             "target": "new",
             "context": ctx,
         }

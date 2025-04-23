@@ -5,3 +5,5 @@
 - Hardik Suthar \<<hsuthar@opensourceintegrators.com>\>
 - Camptocamp \<<https://www.camptocamp.com>\>
   - Denis Leemann \<<denis.leemann@camptocamp.com>\>
+- Trobz \<<https://www.trobz.com>\>
+  - Do Anh Duy \<<duyda@trobz.com>\>

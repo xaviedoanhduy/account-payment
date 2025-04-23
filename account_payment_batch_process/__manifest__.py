@@ -3,7 +3,7 @@
 
 {
     "name": "Account Payment Batch Processing",
-    "version": "16.0.1.0.1",
+    "version": "18.0.1.0.1",
     "license": "AGPL-3",
     "author": "Open Source Integrators, Odoo Community Association (OCA)",
     "summary": """
@@ -17,7 +17,6 @@
     "data": [
         "security/ir.model.access.csv",
         "wizard/account_payment_register.xml",
-        "views/account_move.xml",
         "views/account_payment.xml",
     ],
     "external_dependencies": {"python": ["num2words"]},

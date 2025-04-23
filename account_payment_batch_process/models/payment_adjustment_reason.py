@@ -12,9 +12,3 @@ class PaymentAdjustmentReason(models.Model):
     code = fields.Char(required=True, copy=False)
     account_id = fields.Many2one("account.account")
     reason = fields.Text(copy=False)
-
-    def name_get(self):
-        result = []
-        for pay in self:
-            result.append((pay.id, "%s" % (pay.code or "")))
-        return result
