@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 
 from odoo import Command
-from odoo.tests.common import Form, TransactionCase
+from odoo.tests import Form, TransactionCase
 
 
 class TestAccountPaymentBatchProcessDiscount(TransactionCase):
@@ -22,14 +22,14 @@ class TestAccountPaymentBatchProcessDiscount(TransactionCase):
         cls.account_revenue = cls.env["account.account"].search(
             [
                 ("account_type", "=", "income"),
-                ("company_id", "=", cls.env.company.id),
+                ("company_ids", "in", cls.env.company.ids),
             ],
             limit=1,
         )
         cls.account_expense = cls.env["account.account"].search(
             [
                 ("account_type", "=", "expense"),
-                ("company_id", "=", cls.env.company.id),
+                ("company_ids", "in", cls.env.company.ids),
             ],
             limit=1,
         )
@@ -37,16 +37,17 @@ class TestAccountPaymentBatchProcessDiscount(TransactionCase):
         cls.payment_term = cls.env["account.payment.term"].create(
             {
                 "name": "15 Days",
-                "is_discount": True,
+                "early_discount": True,
+                "discount_days": 10,
+                "discount_expense_account_id": cls.account_expense.id,
+                "discount_income_account_id": cls.account_revenue.id,
+                "discount_percentage": 10,
                 "line_ids": [
                     Command.create(
                         {
-                            "value": "balance",
-                            "days": 15,
-                            "discount_percentage": 10,
-                            "discount_days": 10,
-                            "discount_expense_account_id": cls.account_expense.id,
-                            "discount_income_account_id": cls.account_revenue.id,
+                            "value": "percent",
+                            "value_amount": 100.0,
+                            "nb_days": 15,
                         },
                     )
                 ],

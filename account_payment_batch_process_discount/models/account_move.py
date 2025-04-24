@@ -15,10 +15,8 @@ class AccountMove(models.Model):
         for rec in self:
             if rec.invoice_payment_term_id and rec.invoice_date:
                 # Check payment date discount validation
-                invoice_date = fields.Date.from_string(rec.invoice_date)
                 # Get discount validity days from payment terms
-                for line in rec.invoice_payment_term_id.line_ids:
-                    rec.valid_discount_date = invoice_date + relativedelta(
-                        days=line.discount_days
-                    )
+                rec.valid_discount_date = rec.invoice_date + relativedelta(
+                    days=rec.invoice_payment_term_id.discount_days
+                )
         return res

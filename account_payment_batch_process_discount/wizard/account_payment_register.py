@@ -1,7 +1,7 @@
 # Copyright (C) 2021 Open Source Integrators
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import _, api, exceptions, fields, models
+from odoo import api, exceptions, fields, models
 
 MAP_INVOICE_TYPE_PARTNER_TYPE = {
     "out_invoice": "customer",
@@ -102,5 +102,7 @@ class AccountPaymentRegister(models.TransientModel):
     def auto_fill_payments(self):
         # Check if payment date set
         if not self.payment_date:
-            raise exceptions.ValidationError(_("Please enter the payment date."))
+            raise exceptions.ValidationError(
+                self.env._("Please enter the payment date.")
+            )
         return super().auto_fill_payments()
