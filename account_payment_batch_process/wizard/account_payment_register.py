@@ -164,7 +164,7 @@ class AccountPaymentRegister(models.TransientModel):
             {
                 "amount": abs(total_amount),
                 "currency_id": invoices[0].currency_id.id,
-                "payment_type": is_customer and "outbound" or "inbound",
+                "payment_type": "inbound" if is_customer else "outbound",
                 "partner_id": invoices[0].commercial_partner_id.id,
                 "partner_type": MAP_INVOICE_TYPE_PARTNER_TYPE[invoices[0].move_type],
                 "company_id": self.env.user.company_id.id,
