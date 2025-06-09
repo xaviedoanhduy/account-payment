@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2025 Kencove (https://www.kencove.com).
+License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="view_order_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <field name="has_to_be_paid" invisible="1" />
+                <button
+                    name="portal_link_register_payment"
+                    type="object"
+                    class="oe_stat_button"
+                    attrs="{'invisible': [('has_to_be_paid', '=', False)]}"
+                    icon="fa-usd"
+                >
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">Pay via</span>
+                        <span class="o_stat_text">the portal</span>
+                    </div>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

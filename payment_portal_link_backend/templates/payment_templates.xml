@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2025 Kencove (https://www.kencove.com).
+License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <template id="checkout_inherit" inherit_id="payment.checkout">
+        <xpath expr="//form[@name='o_payment_checkout']" position="attributes">
+            <attribute
+                name="t-att-data-backend_link"
+            >backend_link if backend_link else ""</attribute>
+        </xpath>
+        <xpath expr="//form/t[@t-call='{{footer_template_id}}']" position="before">
+            <t t-if="backend_link">
+                <div class="float-start mt-2">
+                    <a
+                        t-att-href="backend_link"
+                        class="btn btn-outline-primary btn-lg mb8 mt8"
+                    >
+                        <i class="fa fa-arrow-left me-1" />Back to <t
+                            t-out="reference_prefix"
+                        />
+                    </a>
+                </div>
+            </t>
+        </xpath>
+    </template>
+    <template id="confirm_inherit" inherit_id="payment.confirm">
+        <xpath expr="//a[@href='/my/home']" position="attributes">
+            <attribute name="t-if">not backend_link</attribute>
+        </xpath>
+        <xpath expr="//a[@href='/my/home']" position="after">
+            <t t-if="backend_link">
+                <a
+                    role="button"
+                    t-attf-class="btn btn-primary float-end"
+                    t-att-href="backend_link"
+                >
+                    <i class="fa fa-arrow-circle-right" /> Back to <t
+                        t-out="reference"
+                    />
+                </a>
+            </t>
+        </xpath>
+    </template>
+</odoo>
