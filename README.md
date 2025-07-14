@@ -41,6 +41,7 @@ addon | version | maintainers | summary
 [account_payment_return_import_iso20022](account_payment_return_import_iso20022/) | 16.0.1.0.3 |  | This addon allows to import payment returns from ISO 20022 files like PAIN or CAMT.
 [account_payment_term_discount](account_payment_term_discount/) | 16.0.1.1.0 | <a href='https://github.com/bodedra'><img src='https://github.com/bodedra.png' width='32' height='32' style='border-radius:50%;' alt='bodedra'/></a> | Account Payment Terms Discount
 [account_payment_term_extension](account_payment_term_extension/) | 16.0.1.0.4 |  | Adds rounding, months, weeks and multiple payment days properties on payment term lines
+[account_payment_term_partner_holiday](account_payment_term_partner_holiday/) | 16.0.1.0.0 | <a href='https://github.com/victoralmau'><img src='https://github.com/victoralmau.png' width='32' height='32' style='border-radius:50%;' alt='victoralmau'/></a> | Account Payment Term Partner Holiday
 [account_payment_term_restriction](account_payment_term_restriction/) | 16.0.1.0.0 |  | Restricts the usage of Payment Terms Journal Entries
 [account_payment_term_restriction_purchase](account_payment_term_restriction_purchase/) | 16.0.1.0.0 |  | Restricts the usage of Payment Terms on POs
 [account_payment_term_restriction_sale](account_payment_term_restriction_sale/) | 16.0.1.0.0 |  | Restricts the usage of Payment Terms on SOs
