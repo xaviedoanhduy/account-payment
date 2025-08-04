@@ -18,7 +18,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             payment_term=cls.payment_term,
             invoice_date="2019-04-01",
         )
-        cls.init_invoice_line(cls.invoice1, 1.0, 1000.0)
+        cls.init_invoice_line(cls.invoice1, 1.0, 1000.0, tax=cls.purchase_tax)
 
         cls.invoice2 = cls.init_invoice(
             cls.partner,
@@ -26,7 +26,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             payment_term=cls.payment_term,
             invoice_date="2019-02-15",
         )
-        cls.init_invoice_line(cls.invoice2, 1.0, 1000.0)
+        cls.init_invoice_line(cls.invoice2, 1.0, 1000.0, tax=cls.purchase_tax)
 
         cls.invoice3 = cls.init_invoice(
             cls.partner,
@@ -34,7 +34,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             payment_term=cls.payment_thirty_net,
             invoice_date="2019-04-01",
         )
-        cls.init_invoice_line(cls.invoice3, 1.0, 1000.0)
+        cls.init_invoice_line(cls.invoice3, 1.0, 1000.0, tax=cls.purchase_tax)
 
         cls.client_invoice1 = cls.init_invoice(
             cls.customer,
@@ -42,7 +42,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             payment_term=cls.payment_term,
             invoice_date="2019-04-01",
         )
-        cls.init_invoice_line(cls.client_invoice1, 1.0, 1000.0)
+        cls.init_invoice_line(cls.client_invoice1, 1.0, 1000.0, tax=cls.sale_tax)
 
         cls.client_invoice2 = cls.init_invoice(
             cls.customer,
@@ -50,7 +50,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             payment_term=cls.payment_term,
             invoice_date="2019-02-15",
         )
-        cls.init_invoice_line(cls.client_invoice2, 1.0, 1000.0)
+        cls.init_invoice_line(cls.client_invoice2, 1.0, 1000.0, tax=cls.sale_tax)
 
         cls.client_invoice3 = cls.init_invoice(
             cls.customer,
@@ -58,7 +58,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             payment_term=cls.payment_thirty_net,
             invoice_date="2019-04-01",
         )
-        cls.init_invoice_line(cls.client_invoice3, 1.0, 1000.0)
+        cls.init_invoice_line(cls.client_invoice3, 1.0, 1000.0, tax=cls.sale_tax)
 
         cls.amount_without_discount = 1150.0
         cls.amount_discount = 23.0
@@ -228,7 +228,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             invoice_date="2019-04-01",
             currency=self.eur_currency,
         )
-        self.init_invoice_line(invoice1, 1.0, 1000.0)
+        self.init_invoice_line(invoice1, 1.0, 1000.0, tax=self.purchase_tax)
         invoice2 = self.init_invoice(
             self.partner,
             "in_invoice",
@@ -236,7 +236,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             invoice_date="2019-02-15",
             currency=self.eur_currency,
         )
-        self.init_invoice_line(invoice2, 1.0, 1000.0)
+        self.init_invoice_line(invoice2, 1.0, 1000.0, tax=self.purchase_tax)
         invoices = invoice1 | invoice2
         invoices.action_post()
         payment_wizard_form = Form(
@@ -266,7 +266,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             invoice_date="2019-04-01",
             currency=self.eur_currency,
         )
-        self.init_invoice_line(invoice1, 1.0, 1000.0)
+        self.init_invoice_line(invoice1, 1.0, 1000.0, tax=self.purchase_tax)
         invoice2 = self.init_invoice(
             self.partner,
             "in_invoice",
@@ -274,7 +274,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             invoice_date="2019-02-15",
             currency=self.eur_currency,
         )
-        self.init_invoice_line(invoice2, 1.0, 1000.0)
+        self.init_invoice_line(invoice2, 1.0, 1000.0, tax=self.purchase_tax)
         invoice2.force_early_discount = True
         invoices = invoice1 | invoice2
         invoices.action_post()
@@ -303,7 +303,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             invoice_date="2019-04-01",
             currency=self.eur_currency,
         )
-        self.init_invoice_line(invoice1, 1.0, 1000.0)
+        self.init_invoice_line(invoice1, 1.0, 1000.0, tax=self.purchase_tax)
         invoice2 = self.init_invoice(
             self.partner,
             "in_invoice",
@@ -311,7 +311,7 @@ class TestAccountFinancialDiscountManualPayment(TestAccountFinancialDiscountComm
             invoice_date="2019-02-15",
             currency=self.eur_currency,
         )
-        self.init_invoice_line(invoice2, 1.0, 1000.0)
+        self.init_invoice_line(invoice2, 1.0, 1000.0, tax=self.purchase_tax)
         invoices = invoice1 | invoice2
         invoices.action_post()
         payment_wizard_form = Form(

@@ -29,9 +29,7 @@ class TestAccountFinancialDiscountCommon(TransactionCase):
         return move_form.save()
 
     @classmethod
-    def init_invoice_line(
-        cls, invoice, quantity, unit_price, product=None, with_tax=True
-    ):
+    def init_invoice_line(cls, invoice, quantity, unit_price, product=None, tax=None):
         with Form(invoice) as move_form:
             with move_form.invoice_line_ids.new() as line_form:
                 if product:
@@ -39,11 +37,7 @@ class TestAccountFinancialDiscountCommon(TransactionCase):
                 line_form.name = product and product.name or "test"
                 line_form.quantity = quantity
                 line_form.price_unit = unit_price
-                if with_tax:
-                    if invoice.move_type in ("out_invoice", "in_refund"):
-                        tax = cls.sale_tax
-                    elif invoice.move_type in ("in_invoice", "out_refund"):
-                        tax = cls.purchase_tax
+                if tax:
                     line_form.tax_ids = tax
 
     @classmethod
