@@ -117,11 +117,16 @@ class AccountPayment(models.Model):
         vals_list = super()._prepare_move_line_default_vals(
             write_off_line_vals=new_write_off_line_vals, force_balance=force_balance
         )
-        # filter line with both debit and credit equal 0
+
+        # filter line with debit, credit and balance equal 0
         filter_vals_list = [
             vals
             for vals in vals_list
-            if not (vals["debit"] == 0.0 and vals["credit"] == 0.0)
+            if not (
+                vals.get("debit", 0.0) == 0.0
+                and vals.get("credit", 0.0) == 0.0
+                and vals.get("balance", 0.0) == 0.0
+            )
         ]
         return filter_vals_list if filter_vals_list else vals_list
 
