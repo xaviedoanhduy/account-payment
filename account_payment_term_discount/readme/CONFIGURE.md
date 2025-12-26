@@ -1,0 +1,6 @@
+- Go to Accounting \> Configuration \> Management \> Payment Terms
+- Create payment terms. Make sure the Early Ciscount box is checked.
+- Enter the discount percentage and how many days it will apply, for example 5% if paid within 15 days.
+- Select the value for the select Reduced tax box: On early payment if you want the discount amount to include tax and vice versa
+- Check the Exclude Shipping from Discount box if you want to exclude the Shipping fee
+- Enter the appropriate discount accounts
