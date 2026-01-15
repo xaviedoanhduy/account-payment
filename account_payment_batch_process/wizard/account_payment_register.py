@@ -132,11 +132,8 @@ class AccountPaymentRegister(models.TransientModel):
                     "In order to pay multiple bills at once, they must use the same currency."
                 )
             )
-
+        is_customer = MAP_INVOICE_TYPE_PARTNER_TYPE[invoices[0].move_type] == "customer"
         if "batch" in context and context.get("batch"):
-            is_customer = (
-                MAP_INVOICE_TYPE_PARTNER_TYPE[invoices[0].move_type] == "customer"
-            )
             payment_lines = self.get_invoice_payments(invoices)
             res.update({"invoice_payments": payment_lines, "is_customer": is_customer})
         else:
@@ -164,7 +161,7 @@ class AccountPaymentRegister(models.TransientModel):
             {
                 "amount": abs(total_amount),
                 "currency_id": invoices[0].currency_id.id,
-                "payment_type": is_customer and "outbound" or "inbound",
+                "payment_type": "inbound" if is_customer else "outbound",
                 "partner_id": invoices[0].commercial_partner_id.id,
                 "partner_type": MAP_INVOICE_TYPE_PARTNER_TYPE[invoices[0].move_type],
                 "company_id": self.env.user.company_id.id,
