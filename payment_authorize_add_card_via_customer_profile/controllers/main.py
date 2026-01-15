@@ -229,3 +229,50 @@ class AddCardViaProfileController(AuthorizeController):
             "message": _("Payment method added successfully."),
             "token_id": token.id,
         }
+
+    @http.route("/payment/archive_token", type="json", auth="user")
+    def archive_token(self, token_id):
+        """Extend archive_token to allow accounting managers to delete tokens.
+
+        The native implementation only allows users to delete their own tokens.
+        This override adds support for accounting managers to delete tokens
+        for any partner they have access to.
+
+        :param int token_id: The token to archive
+        :return: None
+        """
+        current_user = request.env.user
+        partner_sudo = current_user.partner_id
+
+        # First, try the native behavior (user's own tokens)
+        token_sudo = (
+            request.env["payment.token"]
+            .sudo()
+            .search(
+                [
+                    ("id", "=", token_id),
+                    (
+                        "partner_id",
+                        "in",
+                        [partner_sudo.id, partner_sudo.commercial_partner_id.id],
+                    ),
+                ]
+            )
+        )
+
+        # If not found and user is accounting manager, check if they can access it
+        if not token_sudo and current_user.has_group("account.group_account_manager"):
+            token_sudo = request.env["payment.token"].sudo().browse(token_id)
+            if token_sudo:
+                _logger.info(
+                    "Accounting manager %(user)s archiving token %(token)s "
+                    "for partner %(partner)s",
+                    {
+                        "user": current_user.id,
+                        "token": token_id,
+                        "partner": token_sudo.partner_id.id,
+                    },
+                )
+                token_sudo.active = False
+            else:
+                return super().archive_token(token_id)
