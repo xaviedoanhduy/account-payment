@@ -1,5 +1,7 @@
 # Copyright 2018 Open Source Integrators (http://www.opensourceintegrators.com)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+from collections import defaultdict
+
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
@@ -88,3 +90,13 @@ class AccountMove(models.Model):
             ):
                 shipping_lines_total += line.price_subtotal
             invoice.shipping_lines_total = shipping_lines_total
+
+    def _get_invoice_counterpart_amls_for_early_payment_discount_per_payment_term_line(
+        self,
+    ):
+        res = (
+            super()._get_invoice_counterpart_amls_for_early_payment_discount_per_payment_term_line()  # noqa
+        )
+        if self.invoice_payment_term_id.is_exclude_taxes_discount:
+            res["tax_lines"] = defaultdict(lambda: {})
+        return res
