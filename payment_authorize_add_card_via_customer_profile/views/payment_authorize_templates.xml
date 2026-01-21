@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copyright 2025 Kencove (https://www.kencove.com).
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <!-- Payment Methods page for profile creation flow -->
+    <template id="payment_methods_via_profile" name="Payment Methods via Profile">
+        <t t-call="portal.frontend_layout">
+            <t t-set="page_title" t-value="'Add Payment Method'" />
+            <t t-set="additional_title"><t t-esc="page_title" /></t>
+            <div class="wrap">
+                <div class="container">
+                    <!-- Portal breadcrumb -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ol class="breadcrumb mt8">
+                                <li class="breadcrumb-item">
+                                    <a href="/my/home">
+                                        <i
+                                            class="fa fa-home"
+                                            role="img"
+                                            title="Home"
+                                            aria-label="Home"
+                                        />
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item">Add Payment Method</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Page content -->
+                    <div class="row">
+                        <div class="col-lg-7">
+                            <div class="alert alert-info mb-3">
+                                <i class="fa fa-info-circle" />
+                                Add a new payment method for <strong
+                                    t-esc="partner.display_name"
+                                />.
+                                <br />
+                                <small class="text-muted">
+                                    Card details are securely processed by Authorize.net.
+                                    No validation charge will be made.
+                                </small>
+                            </div>
+
+                            <t
+                                t-if="providers"
+                                t-call="payment_authorize_add_card_via_customer_profile.manage_via_profile"
+                            />
+                            <div t-else="" class="alert alert-warning">
+                                <p><strong
+                                    >No suitable payment provider could be found.</strong></p>
+                                <p
+                                >Please ensure Authorize.net is configured and enabled.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Manage form for profile creation (adapted from payment.manage) -->
+    <template id="manage_via_profile" name="Manage Payment via Profile">
+        <form
+            name="o_payment_manage"
+            class="o_payment_form mt-3 clearfix"
+            t-att-data-partner-id="partner_id"
+            t-att-data-access-token="access_token"
+            t-att-data-landing-route="landing_route"
+            t-att-data-profile-creation-route="profile_creation_route"
+        >
+            <t t-set="provider_count" t-value="len(providers) if providers else 0" />
+            <t t-set="token_count" t-value="len(tokens) if tokens else 0" />
+            <t
+                t-set="default_payment_option_id"
+                t-value="providers[0].id if provider_count == 1 and token_count == 0 else None"
+            />
+
+            <div class="card">
+                <!-- === Providers === -->
+                <t t-foreach="providers" t-as="provider">
+                    <div
+                        name="o_payment_option_card"
+                        class="card-body o_payment_option_card"
+                    >
+                        <label>
+                            <!-- === Radio button === -->
+                            <input
+                                name="o_payment_radio"
+                                type="radio"
+                                t-att-checked="provider.id == default_payment_option_id"
+                                t-att-class="'' if provider_count + token_count > 1 else 'd-none'"
+                                t-att-data-payment-option-id="provider.id"
+                                t-att-data-provider="provider.code"
+                                data-payment-option-type="provider"
+                            />
+                            <!-- === Provider name === -->
+                            <span class="payment_option_name">
+                                <b t-esc="provider.display_as or provider.name" />
+                            </span>
+                            <!-- === "Test Mode" badge === -->
+                            <span
+                                t-if="provider.state == 'test'"
+                                class="badge rounded-pill text-bg-warning ms-1"
+                            >
+                                Test Mode
+                            </span>
+                            <!-- === "Unpublished" badge === -->
+                            <span
+                                t-if="not provider.is_published"
+                                class="badge rounded-pill text-bg-danger ms-1"
+                            >
+                                Unpublished
+                            </span>
+                        </label>
+                        <!-- === Payment icon list === -->
+                        <t t-call="payment.icon_list" />
+                        <!-- === Help message === -->
+                        <div
+                            t-if="not is_html_empty(provider.pre_msg)"
+                            t-out="provider.pre_msg"
+                            class="text-muted ms-3"
+                        />
+                    </div>
+                    <!-- === Provider inline form (card input) === -->
+                    <t
+                        t-if="provider.sudo()._should_build_inline_form(is_validation=True)"
+                    >
+                        <div
+                            t-attf-id="o_payment_provider_inline_form_{{provider.id}}"
+                            name="o_payment_inline_form"
+                            class="card-footer d-none"
+                        >
+                            <t
+                                t-set="inline_form_xml_id"
+                                t-value="provider.sudo().inline_form_view_id.xml_id"
+                            />
+                            <div t-if="inline_form_xml_id" class="clearfix">
+                                <t t-call="{{inline_form_xml_id}}">
+                                    <t t-set="provider_id" t-value="provider.id" />
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                </t>
+                <!-- === Tokens === -->
+                <t t-foreach="tokens" t-as="token">
+                    <div
+                        name="o_payment_option_card"
+                        class="card-body o_payment_option_card"
+                    >
+                        <label>
+                            <!-- === Radio button === -->
+                            <!-- Hidden since this form is for adding new tokens -->
+                            <input
+                                name="o_payment_radio"
+                                type="radio"
+                                t-att-checked="token.id == default_payment_option_id"
+                                class="d-none"
+                                t-att-data-payment-option-id="token.id"
+                                t-att-data-provider="token.provider_code"
+                                data-payment-option-type="token"
+                            />
+                            <!-- === Token name === -->
+                            <span
+                                class="payment_option_name"
+                                t-esc="token.display_name"
+                            />
+                            <!-- === "V" check mark === -->
+                            <t t-call="payment.verified_token_checkmark" />
+                            <!-- === "Unpublished" badge === -->
+                            <span
+                                t-if="not token.provider_id.is_published and token.env.user._is_internal()"
+                                class="badge rounded-pill text-bg-danger ms-1"
+                            >
+                                Unpublished
+                            </span>
+                        </label>
+                        <!-- === "Delete" token button === -->
+                        <button
+                            name="o_payment_delete_token"
+                            type="button"
+                            class="btn btn-primary btn-sm float-end"
+                        >
+                            <i class="fa fa-trash" /> Delete
+                        </button>
+                    </div>
+                    <!-- === Token inline form === -->
+                    <div
+                        t-attf-id="o_payment_token_inline_form_{{token.id}}"
+                        name="o_payment_inline_form"
+                        class="card-footer d-none"
+                    >
+                        <t
+                            t-set="token_inline_form_xml_id"
+                            t-value="token.sudo().provider_id.token_inline_form_view_id.xml_id"
+                        />
+                        <!-- === Inline form content (filled by provider) === -->
+                        <div t-if="token_inline_form_xml_id" class="clearfix">
+                            <t t-call="{{token_inline_form_xml_id}}">
+                                <t t-set="token" t-value="token" />
+                            </t>
+                        </div>
+                    </div>
+                </t>
+            </div>
+
+            <!-- === Form actions === -->
+            <div class="d-flex justify-content-between align-items-center my-3">
+                <a
+                    t-if="back_url"
+                    class="btn btn-outline-secondary"
+                    t-att-href="back_url"
+                >
+                    <i class="fa fa-arrow-left" /> Back to Partner
+                </a>
+                <span t-else="" />
+                <button
+                    name="o_payment_submit_button"
+                    type="submit"
+                    class="btn btn-primary btn-lg my-8"
+                    disabled="true"
+                    t-att-data-icon-class="'fa-plus-circle'"
+                >
+                    <i class="fa fa-plus-circle" />
+                    Add Payment Method
+                </button>
+            </div>
+        </form>
+    </template>
+</odoo>
