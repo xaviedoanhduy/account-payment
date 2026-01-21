@@ -126,7 +126,10 @@ odoo.define(
                         this._displayError(
                             _t("Server Error"),
                             _t("An error occurred when displaying this payment form."),
-                            error.message.data.message
+                            (error.message &&
+                                error.message.data &&
+                                error.message.data.message) ||
+                                _t("An unexpected error occurred.")
                         );
                     });
             },
@@ -237,7 +240,10 @@ odoo.define(
                         this._displayError(
                             _t("Server Error"),
                             _t("We were not able to save your payment method."),
-                            error.message.data.message
+                            (error.message &&
+                                error.message.data &&
+                                error.message.data.message) ||
+                                _t("An unexpected error occurred.")
                         );
                         this._enableButton();
                         $("body").unblock();

@@ -13,6 +13,7 @@ in Authorize.net, without triggering the $0.01 validation transaction.
     "category": "Accounting/Payment Providers",
     "depends": [
         "payment_authorize",
+        "sales_team",
     ],
     "data": [
         "views/res_partner_view.xml",

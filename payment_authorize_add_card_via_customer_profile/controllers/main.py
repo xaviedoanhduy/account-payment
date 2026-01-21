@@ -35,7 +35,8 @@ class AddCardViaProfileController(AuthorizeController):
         current_user = request.env.user
         is_own_partner = partner.id == current_user.partner_id.id
         is_accounting_manager = current_user.has_group("account.group_account_manager")
-        return is_own_partner or is_accounting_manager
+        is_salesman = current_user.has_group("sales_team.group_sale_salesman")
+        return is_own_partner or is_accounting_manager or is_salesman
 
     @http.route(
         ["/user/payment_method2/<model('res.partner'):partner>"],
@@ -236,7 +237,7 @@ class AddCardViaProfileController(AuthorizeController):
 
         The native implementation only allows users to delete their own tokens.
         This override adds support for accounting managers to delete tokens
-        for any partner they have access to.
+        for any partner they have access to within their allowed companies.
 
         :param int token_id: The token to archive
         :return: None
@@ -260,10 +261,22 @@ class AddCardViaProfileController(AuthorizeController):
             )
         )
 
+        # If found as user's own token, archive it
+        if token_sudo:
+            token_sudo.active = False
+            return
+
         # If not found and user is accounting manager, check if they can access it
-        if not token_sudo and current_user.has_group("account.group_account_manager"):
+        if current_user.has_group(
+            "account.group_account_manager"
+        ) or current_user.has_group("sales_team.group_sale_salesman"):
             token_sudo = request.env["payment.token"].sudo().browse(token_id)
-            if token_sudo:
+            # Verify token exists and belongs to a company the user has access to
+            # If token has no company, allow access (multi-company agnostic token)
+            if token_sudo.exists() and (
+                not token_sudo.company_id
+                or token_sudo.company_id.id in current_user.company_ids.ids
+            ):
                 _logger.info(
                     "Accounting manager %(user)s archiving token %(token)s "
                     "for partner %(partner)s",
@@ -274,5 +287,7 @@ class AddCardViaProfileController(AuthorizeController):
                     },
                 )
                 token_sudo.active = False
-            else:
-                return super().archive_token(token_id)
+                return
+
+        # Fall back to parent behavior (will raise appropriate error)
+        return super().archive_token(token_id)

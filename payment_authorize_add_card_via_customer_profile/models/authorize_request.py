@@ -9,6 +9,21 @@ from odoo.addons.payment_authorize.models.authorize_request import AuthorizeAPI
 
 _logger = logging.getLogger(__name__)
 
+# Authorize.net API field length limits per XSD schema
+# https://developer.authorize.net/api/reference/
+AUTHORIZE_FIELD_LIMITS = {
+    "merchant_customer_id": 20,
+    "description": 255,
+    "first_name": 50,
+    "last_name": 50,
+    "company": 50,
+    "address": 60,
+    "city": 40,
+    "state": 40,
+    "zip": 20,
+    "country": 60,
+}
+
 
 def create_customer_profile_direct(self, partner):
     """Create a customer profile directly without a transaction.
@@ -20,7 +35,12 @@ def create_customer_profile_direct(self, partner):
     :return: the customerProfileId if successful, False otherwise
     :rtype: str or False
     """
-    merchant_id = f"ODOO-{partner.id}-{uuid4().hex[:8]}"[:20]
+    merchant_id = f"ODOO-{partner.id}-{uuid4().hex[:8]}"[
+        : AUTHORIZE_FIELD_LIMITS["merchant_customer_id"]
+    ]
+    description = f"Odoo Partner: {partner.display_name}"[
+        : AUTHORIZE_FIELD_LIMITS["description"]
+    ]
     # Note: Authorize.net API requires fields in specific order per XSD schema:
     # merchantCustomerId, description, email, paymentProfiles, shipToList, profileType
     response = self._make_request(
@@ -28,7 +48,7 @@ def create_customer_profile_direct(self, partner):
         {
             "profile": {
                 "merchantCustomerId": merchant_id,
-                "description": f"Odoo Partner: {partner.display_name[:50]}",
+                "description": description,
                 "email": partner.email or "",
             },
         },
@@ -78,17 +98,35 @@ def create_customer_payment_profile(self, customer_profile_id, opaque_data, part
             partner.name or partner.display_name
         )
 
+    first_name_limit = AUTHORIZE_FIELD_LIMITS["first_name"]
+    last_name_limit = AUTHORIZE_FIELD_LIMITS["last_name"]
     bill_to = {
-        "firstName": split_name[0][:50] if split_name[0] else "",
-        "lastName": split_name[1][:50] if split_name[1] else partner.name[:50],
-        "company": partner.name[:50] if partner.is_company else "",
+        "firstName": split_name[0][:first_name_limit] if split_name[0] else "",
+        "lastName": (
+            split_name[1][:last_name_limit]
+            if split_name[1]
+            else partner.name[:last_name_limit]
+        ),
+        "company": (
+            partner.name[: AUTHORIZE_FIELD_LIMITS["company"]]
+            if partner.is_company
+            else ""
+        ),
         "address": ((partner.street or "") + " " + (partner.street2 or "")).strip()[
-            :60
+            : AUTHORIZE_FIELD_LIMITS["address"]
         ],
-        "city": partner.city or "",
-        "state": partner.state_id.name[:40] if partner.state_id else "",
-        "zip": partner.zip or "",
-        "country": partner.country_id.name[:60] if partner.country_id else "",
+        "city": (partner.city or "")[: AUTHORIZE_FIELD_LIMITS["city"]],
+        "state": (
+            partner.state_id.name[: AUTHORIZE_FIELD_LIMITS["state"]]
+            if partner.state_id
+            else ""
+        ),
+        "zip": (partner.zip or "")[: AUTHORIZE_FIELD_LIMITS["zip"]],
+        "country": (
+            partner.country_id.name[: AUTHORIZE_FIELD_LIMITS["country"]]
+            if partner.country_id
+            else ""
+        ),
     }
 
     response = self._make_request(
@@ -180,7 +218,7 @@ def get_or_create_customer_profile(self, partner, provider):
     :return: the customerProfileId
     :rtype: str or False
     """
-    # Check if partner already has a token with an authorize_profile
+    # Check if partner already has an active token with an authorize_profile
     existing_token = (
         partner.env["payment.token"]
         .sudo()
@@ -189,6 +227,7 @@ def get_or_create_customer_profile(self, partner, provider):
                 ("partner_id", "=", partner.id),
                 ("provider_id", "=", provider.id),
                 ("authorize_profile", "!=", False),
+                ("active", "=", True),
             ],
             limit=1,
         )
